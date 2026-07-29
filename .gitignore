@@ -1,4 +1,4 @@
 data/descompressed/
 build/
 .vscode/
-
+*.exe
