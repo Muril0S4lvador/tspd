@@ -36,7 +36,7 @@ namespace tspd::tspd {
                 os << "Type: " << tspd.type_ << '\n';
                 os << "Edge Weight Type: " << tspd.edge_weight_type_ << '\n';
                 os << "Dimension: " << tspd.dimension_ << '\n';
-                os << "Nodes: \n" << tspd.nodes_;
+                // os << "Nodes: \n" << tspd.nodes_;
                 return os;
             }
     };

@@ -8,11 +8,16 @@
 #include <windows.h>
 #endif
 
+#include <SFML/Graphics.hpp>
+
 #include "instance_reader/instance_reader.hpp"
 #include "node/node.hpp"
 #include "tspd/tspd.hpp"
+#include "graphic/graphic.hpp"
 
 void setInterpreter();
+
+
 
 int main(int argc, char* argv[]) {
     setInterpreter();
@@ -39,6 +44,9 @@ int main(int argc, char* argv[]) {
         tspd::tspd::TSPD instancia = tspd::instance_reader::InstanceReader::readInstance(caminho_instancia);
 
         std::cout << instancia;
+
+        tspd::graphic::Graphic graphic(instancia);
+        graphic.draw();
 
         auto fim = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tempo_execucao = fim - inicio;

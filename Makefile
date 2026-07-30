@@ -3,7 +3,7 @@
 # ==============================================================================
 CXX      := g++
 CXXFLAGS := -std=c++17 -Wall -Wextra -O2
-LDFLAGS  := 
+LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system
 
 SRC_DIR   := src
 BUILD_DIR := build
@@ -26,7 +26,8 @@ INC_FLAGS := -Isrc -Isrc/instance_reader -Isrc/node -Isrc/tspd
 SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \
         $(wildcard $(SRC_DIR)/node/*.cpp) \
-        $(wildcard $(SRC_DIR)/tspd/*.cpp)
+        $(wildcard $(SRC_DIR)/tspd/*.cpp) \
+        $(wildcard $(SRC_DIR)/graphic/*.cpp)
 
 # Mapeia cada .cpp para o seu respectivo .o dentro de build/
 OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
