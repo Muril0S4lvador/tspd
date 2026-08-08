@@ -30,40 +30,38 @@ namespace tspd::graphic{
 
         float maior_dimensao = std::max(largura_grafo, altura_grafo);
         
-        tamanho_view = maior_dimensao * 1.07f;
+        tamanho_view = maior_dimensao * _WINDOW_VIEW_ZOOM_;
 
         view.setCenter({centro_x, centro_y});
         view.setSize({tamanho_view, tamanho_view});
     }
 
-    
-
     Graphic::Graphic(TSPD tspd) : tspd_(tspd) {}
 
     void Graphic::draw(){
 
-        sf::RenderWindow window(sf::VideoMode({800u, 800u}), "Grafo TSPD - " + tspd_.getName());
-        
+        sf::RenderWindow window(sf::VideoMode(_WINDOW_SIZE_), "Grafo TSPD - " + tspd_.getName());
+
         vector<node::Node> nodes = tspd_.getNodes();
         sf::View view;
 
-        double centerX = getMediaCoord(coordsX);
-        double centerY = getMediaCoord(coordsY);
-
         float tamanho_view = 0.f;
-        enquadrarGrafoCompleto(view, nodes, tamanho_view);
+        _configureView(view, nodes, tamanho_view);
 
         window.setView(view);
 
-
         std::vector<sf::CircleShape> vertices;
-        float raio = tamanho_view * 0.005f;
+        float raio = tamanho_view * _NODE_RADIUS_RATIO_;
 
         for (size_t i = 0; i < nodes.size(); i++) {
             sf::CircleShape vertice(raio); 
-            vertice.setFillColor(sf::Color::Red);
-            if(i == 0)
-                vertice.setFillColor(sf::Color::Green);
+        if (i == 0) {
+            vertice.setFillColor(_DEPOSIT_COLOR_); 
+            vertice.setOutlineColor(_DEPOSIT_OUTLINE_COLOR_);
+            vertice.setOutlineThickness(raio * _DEPOSIT_OUTLINE_THICKNESS_RATIO_);
+        } else {
+            vertice.setFillColor(_VERTICES_COLOR_); 
+        }
 
             vertice.setOrigin({raio, raio}); 
             vertice.setPosition({static_cast<float>(nodes[i].getX()), static_cast<float>(nodes[i].getY())});
@@ -78,7 +76,7 @@ namespace tspd::graphic{
                 }
             }
 
-            window.clear(sf::Color::Black);
+            window.clear(_WINDOW_BACKGROUND_COLOR_);
 
             for (const auto& vertice : vertices) {
                 window.draw(vertice);
