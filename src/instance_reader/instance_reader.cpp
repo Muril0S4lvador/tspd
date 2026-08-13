@@ -136,7 +136,123 @@ namespace tspd::instance_reader {
 
     void InstanceReader::readEdgeWeightSection(const vector<string>& lines,
                                                size_t& lineIndex,
-                                               vector<double>& edgeWeights) {
+                                               vector<double>& edgeWeights,
+                                               const string& edgeWeightFormat,
+                                               int dimension) {
+        const size_t nodeCount = static_cast<size_t>(dimension);
+        const size_t compactSize = nodeCount * (nodeCount - 1) / 2;
+        edgeWeights.assign(compactSize, 0.0);
+
+        const string format = toUpper(trim(edgeWeightFormat));
+        size_t row = 0;
+        size_t column = 0;
+        size_t expectedWeights = 0;
+
+        if (format == "FULL_MATRIX") {
+            column = 0;
+            expectedWeights = nodeCount * nodeCount;
+        } else if (format == "UPPER_ROW") {
+            column = nodeCount > 1 ? 1 : 0;
+            expectedWeights = nodeCount * (nodeCount - 1) / 2;
+        } else if (format == "LOWER_ROW") {
+            row = nodeCount > 1 ? 1 : 0;
+            column = 0;
+            expectedWeights = nodeCount * (nodeCount - 1) / 2;
+        } else if (format == "UPPER_DIAG_ROW") {
+            expectedWeights = nodeCount * (nodeCount + 1) / 2;
+        } else if (format == "LOWER_DIAG_ROW") {
+            expectedWeights = nodeCount * (nodeCount + 1) / 2;
+        } else if (format == "UPPER_COL") {
+            column = nodeCount > 1 ? 1 : 0;
+            expectedWeights = nodeCount * (nodeCount - 1) / 2;
+        } else if (format == "LOWER_COL") {
+            row = nodeCount > 1 ? 1 : 0;
+            expectedWeights = nodeCount * (nodeCount - 1) / 2;
+        } else if (format == "UPPER_DIAG_COL" || format == "LOWER_DIAG_COL") {
+            expectedWeights = nodeCount * (nodeCount + 1) / 2;
+        } else {
+            throw std::invalid_argument(
+                "Unsupported EDGE_WEIGHT_FORMAT: " + edgeWeightFormat);
+        }
+
+        size_t consumedWeights = 0;
+        const auto compactIndex = [nodeCount](size_t first, size_t second) {
+            if (first > second)
+                std::swap(first, second);
+            return first * (2 * nodeCount - first - 1) / 2 +
+                   second - first - 1;
+        };
+
+        const auto advancePosition = [&]() {
+            if (format == "FULL_MATRIX") {
+                ++column;
+                if (column == nodeCount) {
+                    column = 0;
+                    ++row;
+                }
+            } else if (format == "UPPER_ROW") {
+                ++column;
+                if (column == nodeCount) {
+                    ++row;
+                    column = row + 1;
+                }
+            } else if (format == "LOWER_ROW") {
+                ++column;
+                if (column == row) {
+                    ++row;
+                    column = 0;
+                }
+            } else if (format == "UPPER_DIAG_ROW") {
+                ++column;
+                if (column == nodeCount) {
+                    ++row;
+                    column = row;
+                }
+            } else if (format == "LOWER_DIAG_ROW") {
+                ++column;
+                if (column > row) {
+                    ++row;
+                    column = 0;
+                }
+            } else if (format == "UPPER_COL") {
+                ++row;
+                if (row == column) {
+                    ++column;
+                    row = 0;
+                }
+            } else if (format == "LOWER_COL") {
+                ++row;
+                if (row == nodeCount) {
+                    ++column;
+                    row = column + 1;
+                }
+            } else if (format == "UPPER_DIAG_COL") {
+                ++row;
+                if (row > column) {
+                    ++column;
+                    row = 0;
+                }
+            } else if (format == "LOWER_DIAG_COL") {
+                ++row;
+                if (row == nodeCount) {
+                    ++column;
+                    row = column;
+                }
+            }
+        };
+
+        const auto consumeWeight = [&](double weight) {
+            if (consumedWeights >= expectedWeights)
+                throw std::invalid_argument(
+                    "EDGE_WEIGHT_SECTION has more values than expected");
+
+            if (row != column)
+                edgeWeights[compactIndex(row, column)] = weight;
+
+            ++consumedWeights;
+            advancePosition();
+        };
+
         ++lineIndex;
 
         while (lineIndex < lines.size()) {
@@ -151,7 +267,7 @@ namespace tspd::instance_reader {
                     if (!std::isfinite(weight) || weight < 0.0)
                         throw std::invalid_argument(
                             "Invalid edge weight: " + trim(line));
-                    edgeWeights.push_back(weight);
+                    consumeWeight(weight);
                 }
 
                 if (!streamLine.eof())
@@ -161,86 +277,139 @@ namespace tspd::instance_reader {
 
             ++lineIndex;
         }
+
+        if (consumedWeights != expectedWeights)
+            throw std::invalid_argument(
+                "EDGE_WEIGHT_SECTION has fewer values than expected");
     }
 
-    vector<node::Node> InstanceReader::calculateCoordinates(
-        const vector<double>& edgeWeights,
-        const string& edgeWeightFormat,
+    int InstanceReader::convertDistanceToInteger(double distance) {
+        const double roundedDistance = std::ceil(distance);
+        if (roundedDistance > std::numeric_limits<int>::max() ||
+            roundedDistance < std::numeric_limits<int>::min()) {
+            throw std::invalid_argument("Distance does not fit in int");
+        }
+
+        return static_cast<int>(roundedDistance);
+    }
+
+    InstanceReader::CalculatedData InstanceReader::calculateCoordinates(
+        const vector<double>& compactEdgeWeights,
         int dimension) {
         if (dimension <= 0)
             return {};
 
         const size_t nodeCount = static_cast<size_t>(dimension);
-        vector<double> distances(nodeCount * nodeCount, 0.0);
-        size_t weightIndex = 0;
-
-        const auto nextWeight = [&]() {
-            if (weightIndex >= edgeWeights.size())
-                throw std::invalid_argument(
-                    "EDGE_WEIGHT_SECTION has fewer values than DIMENSION requires");
-            return edgeWeights[weightIndex++];
-        };
-
-        const auto setDistance = [&](size_t row, size_t column, double distance) {
-            distances[row * nodeCount + column] = distance;
-            distances[column * nodeCount + row] = distance;
-        };
-
-        const string format = toUpper(trim(edgeWeightFormat));
-        if (format == "FULL_MATRIX") {
-            for (size_t row = 0; row < nodeCount; ++row) {
-                for (size_t column = 0; column < nodeCount; ++column)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "UPPER_ROW") {
-            for (size_t row = 0; row + 1 < nodeCount; ++row) {
-                for (size_t column = row + 1; column < nodeCount; ++column)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "LOWER_ROW") {
-            for (size_t row = 1; row < nodeCount; ++row) {
-                for (size_t column = 0; column < row; ++column)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "UPPER_DIAG_ROW") {
-            for (size_t row = 0; row < nodeCount; ++row) {
-                for (size_t column = row; column < nodeCount; ++column)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "LOWER_DIAG_ROW") {
-            for (size_t row = 0; row < nodeCount; ++row) {
-                for (size_t column = 0; column <= row; ++column)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "UPPER_COL") {
-            for (size_t column = 1; column < nodeCount; ++column) {
-                for (size_t row = 0; row < column; ++row)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "LOWER_COL") {
-            for (size_t column = 0; column + 1 < nodeCount; ++column) {
-                for (size_t row = column + 1; row < nodeCount; ++row)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "UPPER_DIAG_COL") {
-            for (size_t column = 0; column < nodeCount; ++column) {
-                for (size_t row = 0; row <= column; ++row)
-                    setDistance(row, column, nextWeight());
-            }
-        } else if (format == "LOWER_DIAG_COL") {
-            for (size_t column = 0; column < nodeCount; ++column) {
-                for (size_t row = column; row < nodeCount; ++row)
-                    setDistance(row, column, nextWeight());
-            }
-        } else {
+        const size_t compactSize = nodeCount * (nodeCount - 1) / 2;
+        vector<int> distances(compactSize, 0);
+        if (compactEdgeWeights.size() != compactSize)
             throw std::invalid_argument(
-                "Unsupported EDGE_WEIGHT_FORMAT: " + edgeWeightFormat);
+                "Compact EDGE_WEIGHT_SECTION size differs from DIMENSION");
+
+        for (size_t index = 0; index < compactSize; ++index)
+            distances[index] = convertDistanceToInteger(compactEdgeWeights[index]);
+
+        CalculatedData result;
+        result.distances = std::move(distances);
+        result.nodes = calculateNodesFromDistances(result.distances, dimension);
+        return result;
+    }
+
+    double InstanceReader::calculateRawDistance(
+        const node::Node& firstNode,
+        const node::Node& secondNode,
+        const string& edgeWeightType) {
+        const string type = toUpper(trim(edgeWeightType));
+        const double firstX = firstNode.getX();
+        const double firstY = firstNode.getY();
+        const double secondX = secondNode.getX();
+        const double secondY = secondNode.getY();
+
+        if (type == "GEO") {
+            constexpr double pi = 3.14159265358979323846;
+            constexpr double earthRadius = 6378.388;
+            const auto geoToRadians = [pi](double coordinate) {
+                const double degrees = std::trunc(coordinate);
+                const double minutes = coordinate - degrees;
+                return pi * (degrees + 5.0 * minutes / 3.0) / 180.0;
+            };
+
+            const double latitude1 = geoToRadians(firstX);
+            const double longitude1 = geoToRadians(firstY);
+            const double latitude2 = geoToRadians(secondX);
+            const double longitude2 = geoToRadians(secondY);
+            const double cosine =
+                std::sin(latitude1) * std::sin(latitude2) +
+                std::cos(latitude1) * std::cos(latitude2) *
+                    std::cos(longitude1 - longitude2);
+
+            return earthRadius * std::acos(std::clamp(cosine, -1.0, 1.0));
         }
 
-        if (weightIndex != edgeWeights.size())
-            throw std::invalid_argument(
-                "EDGE_WEIGHT_SECTION has more values than DIMENSION requires");
+        const double deltaX = firstX - secondX;
+        const double deltaY = firstY - secondY;
+        const double squaredDistance = deltaX * deltaX + deltaY * deltaY;
 
+        if (type == "ATT")
+            return std::sqrt(squaredDistance / 10.0);
+
+        if (type == "EUC_2D" || type == "CEIL_2D")
+            return std::sqrt(squaredDistance);
+
+        throw std::invalid_argument(
+            "Cannot calculate distances for EDGE_WEIGHT_TYPE: " + edgeWeightType);
+    }
+
+    vector<int> InstanceReader::calculateDistances(
+        const vector<node::Node>& nodes,
+        const string& edgeWeightType) {
+        const size_t nodeCount = nodes.size();
+        vector<int> distances(nodeCount * (nodeCount - 1) / 2, 0);
+
+        const auto compactIndex = [nodeCount](size_t row, size_t column) {
+            if (row > column)
+                std::swap(row, column);
+
+            return row * (2 * nodeCount - row - 1) / 2 + column - row - 1;
+        };
+
+        for (size_t first = 0; first < nodeCount; ++first) {
+            for (size_t second = first + 1; second < nodeCount; ++second) {
+                distances[compactIndex(first, second)] = convertDistanceToInteger(
+                    calculateRawDistance(nodes[first], nodes[second], edgeWeightType));
+            }
+        }
+
+        return distances;
+    }
+
+    int InstanceReader::getCompactDistance(const vector<int>& distances,
+                                           int dimension,
+                                           size_t firstNode,
+                                           size_t secondNode) {
+        if (firstNode == secondNode)
+            return 0;
+
+        const size_t nodeCount = static_cast<size_t>(dimension);
+        if (firstNode >= nodeCount || secondNode >= nodeCount)
+            throw std::invalid_argument("Node index outside distance matrix");
+
+        if (firstNode > secondNode)
+            std::swap(firstNode, secondNode);
+
+        const size_t index =
+            firstNode * (2 * nodeCount - firstNode - 1) / 2 +
+            secondNode - firstNode - 1;
+        return distances.at(index);
+    }
+
+    vector<node::Node> InstanceReader::calculateNodesFromDistances(
+        const vector<int>& distances,
+        int dimension) {
+        if (dimension <= 0)
+            return {};
+
+        const size_t nodeCount = static_cast<size_t>(dimension);
         vector<node::Node> nodes;
         nodes.reserve(nodeCount);
         if (nodeCount == 1) {
@@ -256,14 +425,14 @@ namespace tspd::instance_reader {
 
         size_t secondAnchor = 1;
         for (size_t index = 2; index < nodeCount; ++index) {
-            if (distances[firstAnchor * nodeCount + index] >
-                distances[firstAnchor * nodeCount + secondAnchor]) {
+            if (getCompactDistance(distances, dimension, firstAnchor, index) >
+                getCompactDistance(distances, dimension, firstAnchor, secondAnchor)) {
                 secondAnchor = index;
             }
         }
 
         const double firstSecondDistance =
-            distances[firstAnchor * nodeCount + secondAnchor];
+            getCompactDistance(distances, dimension, firstAnchor, secondAnchor);
         if (firstSecondDistance <= epsilon) {
             for (size_t index = 0; index < nodeCount; ++index)
                 nodes.emplace_back(static_cast<int>(index + 1), 0.0, 0.0);
@@ -272,9 +441,9 @@ namespace tspd::instance_reader {
 
         const auto xFromTwoAnchors = [&](size_t index) {
             const double firstDistance =
-                distances[firstAnchor * nodeCount + index];
+                getCompactDistance(distances, dimension, firstAnchor, index);
             const double secondDistance =
-                distances[secondAnchor * nodeCount + index];
+                getCompactDistance(distances, dimension, secondAnchor, index);
             return (squared(firstDistance) + squared(firstSecondDistance) -
                     squared(secondDistance)) /
                    (2.0 * firstSecondDistance);
@@ -288,7 +457,7 @@ namespace tspd::instance_reader {
 
             const double x = xFromTwoAnchors(index);
             const double firstDistance =
-                distances[firstAnchor * nodeCount + index];
+                getCompactDistance(distances, dimension, firstAnchor, index);
             const double heightSquared = squared(firstDistance) - squared(x);
             if (thirdAnchor == firstAnchor || heightSquared > thirdAnchorHeightSquared) {
                 thirdAnchor = index;
@@ -307,9 +476,9 @@ namespace tspd::instance_reader {
 
             if (thirdAnchor != firstAnchor && thirdAnchorY > epsilon) {
                 const double firstDistance =
-                    distances[firstAnchor * nodeCount + index];
+                    getCompactDistance(distances, dimension, firstAnchor, index);
                 const double thirdDistance =
-                    distances[thirdAnchor * nodeCount + index];
+                    getCompactDistance(distances, dimension, thirdAnchor, index);
                 const double rightSide =
                     squared(firstDistance) +
                     squared(thirdAnchorX) +
@@ -344,6 +513,7 @@ namespace tspd::instance_reader {
         vector<node::Node> coordinateNodes;
         vector<node::Node> displayNodes;
         vector<double> edgeWeights;
+        vector<int> distances;
         bool hasCoordinateSection = false;
         bool hasDisplaySection = false;
 
@@ -367,7 +537,8 @@ namespace tspd::instance_reader {
             }
 
             if (marker == "EDGE_WEIGHT_SECTION") {
-                readEdgeWeightSection(lines, lineIndex, edgeWeights);
+                readEdgeWeightSection(lines, lineIndex, edgeWeights,
+                                      edgeWeightFormat, dimension);
                 continue;
             }
 
@@ -417,20 +588,25 @@ namespace tspd::instance_reader {
                 "NODE_COORD_SECTION size differs from DIMENSION in " + filePath);
         }
 
-        if (!hasCoordinateSection && hasDisplaySection &&
-            static_cast<int>(displayNodes.size()) == dimension) {
-            coordinateNodes = std::move(displayNodes);
-        } else if (!hasCoordinateSection && hasDisplaySection) {
-            throw std::invalid_argument(
-                "DISPLAY_DATA_SECTION size differs from DIMENSION in " + filePath);
+        const string normalizedEdgeWeightType = toUpper(trim(edgeWeightType));
+        if (normalizedEdgeWeightType == "EXPLICIT") {
+            const CalculatedData calculated = calculateCoordinates(
+                edgeWeights, dimension);
+            coordinateNodes = calculated.nodes;
+            distances = calculated.distances;
+        } else {
+            if (!hasCoordinateSection && hasDisplaySection &&
+                static_cast<int>(displayNodes.size()) == dimension) {
+                coordinateNodes = std::move(displayNodes);
+            } else if (!hasCoordinateSection && hasDisplaySection) {
+                throw std::invalid_argument(
+                    "DISPLAY_DATA_SECTION size differs from DIMENSION in " + filePath);
+            }
+
+            distances = calculateDistances(coordinateNodes, edgeWeightType);
         }
 
-        if (coordinateNodes.empty() &&
-            toUpper(trim(edgeWeightType)) == "EXPLICIT") {
-            coordinateNodes = calculateCoordinates(
-                edgeWeights, edgeWeightFormat, dimension);
-        }
-
-        return TSPD(name, comment, type, dimension, edgeWeightType, coordinateNodes);
+        return TSPD(name, comment, type, dimension, edgeWeightType,
+                    coordinateNodes, distances);
     }
 }
