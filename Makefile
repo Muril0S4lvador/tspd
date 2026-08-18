@@ -17,16 +17,18 @@ endif
 # ==============================================================================
 # INCLUSÃO DE CABEÇALHOS (-I)
 # ==============================================================================
-INC_FLAGS := -Isrc -Isrc/instance_reader -Isrc/node -Isrc/tspd
+INC_FLAGS := -Isrc -Isrc/edge -Isrc/instance_reader -Isrc/node -Isrc/tspd -Isrc/utils
 
 # ==============================================================================
 # MAPEAMENTO DOS ARQUIVOS .CPP E .O
 # ==============================================================================
 # Busca todos os arquivos .cpp nas subpastas conhecidas de src/
 SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
+        $(wildcard $(SRC_DIR)/edge/*.cpp) \
         $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \
         $(wildcard $(SRC_DIR)/node/*.cpp) \
         $(wildcard $(SRC_DIR)/tspd/*.cpp) \
+        $(wildcard $(SRC_DIR)/utils/*.cpp) \
         $(wildcard $(SRC_DIR)/graphic/*.cpp)
 
 # Mapeia cada .cpp para o seu respectivo .o dentro de build/

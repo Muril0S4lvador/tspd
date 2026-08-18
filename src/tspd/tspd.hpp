@@ -3,12 +3,14 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <stdexcept>
 
 using std::string;
 using std::vector;
 
+#include "../edge/edge.hpp"
 #include "../node/node.hpp"
+
+using tspd::edge::Edge;
 
 namespace tspd::tspd {
     class TSPD {
@@ -19,7 +21,7 @@ namespace tspd::tspd {
             int dimension_;
             string edge_weight_type_;
             vector<node::Node> nodes_;
-            vector<int> distances_;
+            vector<Edge> edges_;
 
         public:
             TSPD(string name,
@@ -28,7 +30,7 @@ namespace tspd::tspd {
                  int dimension,
                  string edge_weight_type,
                  vector<node::Node> nodes,
-                 vector<int> distances = {});
+                 vector<Edge> edges = {});
 
             string getName() const;
             string getComment() const;
@@ -36,7 +38,7 @@ namespace tspd::tspd {
             int getDimension() const;
             string getEdgeWeightType() const;
             vector<node::Node> getNodes() const;
-            vector<int> getDistances() const;
+            vector<Edge> getEdges() const;
             int getDistance(int firstNodeId, int secondNodeId) const;
 
             // Sobrecarga de Operador <<
