@@ -1,4 +1,5 @@
 #include "Graphic.hpp"
+#include "../utils/utils.hpp"
 
 namespace tspd::graphic{
 
@@ -43,6 +44,9 @@ namespace tspd::graphic{
         sf::RenderWindow window(sf::VideoMode(_WINDOW_SIZE_), "Grafo TSPD - " + tspd_.getName());
 
         vector<node::Node> nodes = tspd_.getNodes();
+        if(nodes.empty())
+            nodes = ::tspd::utils::calculateNodesFromDistances(tspd_.getEdges(), tspd_.getDimension());
+
         sf::View view;
 
         float tamanho_view = 0.f;
