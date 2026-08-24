@@ -12,8 +12,11 @@
 
 #include "instance_reader/instance_reader.hpp"
 #include "node/node.hpp"
+#include "edge/edge.hpp"
 #include "tspd/tspd.hpp"
 #include "graphic/graphic.hpp"
+#include "solution/solution.hpp"
+#include "kruskal/kruskal.hpp"
 
 void setInterpreter();
 
@@ -38,24 +41,29 @@ int main(int argc, char* argv[]) {
         std::cout << "Instância selecionada: " << caminho_instancia << "\n\n";
 
         // 2. Início da medição de tempo
+        
         auto inicio = std::chrono::high_resolution_clock::now();
-
         std::cout << "[1/2] Lendo dados da instância...\n";
         tspd::tspd::TSPD instancia = tspd::instance_reader::InstanceReader::readInstance(caminho_instancia);
+        auto fim = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> tempo_execucao = fim - inicio;
 
         std::cout << instancia;
+        std::vector<tspd::node::Node> nodes = instancia.getNodes();
+        std::vector<tspd::edge::Edge> edges = instancia.getEdges();
+        tspd::solution::Solution s = tspd::kruskal::Kruskal::kruskal(nodes, edges);
 
         tspd::graphic::Graphic graphic(instancia);
         graphic.draw();
 
-        auto fim = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> tempo_execucao = fim - inicio;
 
         // 5. Exibição dos resultados
         std::cout << "\n\n==========================================\n";
         std::cout << "  Execucao concluida com sucesso!\n";
         std::cout << "  Tempo de execucao: " << tempo_execucao.count() << " segundos\n";
         std::cout << "==========================================\n";
+
+        std::cout << s;
 
     } catch (const std::exception& e) {
         // Captura erros lançados durante a execução (ex: arquivo não encontrado, erro de leitura)

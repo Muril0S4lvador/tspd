@@ -25,5 +25,7 @@ namespace tspd::edge {
                                  int dimension,
                                  int firstNodeId,
                                  int secondNodeId);
+
+            static void sortEdgesAscendingWeights(std::vector<Edge>& edges);
     };
 }

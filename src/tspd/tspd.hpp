@@ -23,6 +23,8 @@ namespace tspd::tspd {
             vector<node::Node> nodes_;
             vector<Edge> edges_;
 
+            
+
         public:
             TSPD(string name,
                  string comment,

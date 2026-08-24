@@ -63,4 +63,10 @@ namespace tspd::edge {
 
         return edges[index].getWeight();
     }
+
+    void Edge::sortEdgesAscendingWeights(std::vector<Edge>& edges){
+        std::sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b) {
+            return a.getWeight() < b.getWeight(); 
+        });
+    }
 }
