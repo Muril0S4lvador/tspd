@@ -68,8 +68,8 @@ namespace tspd::kruskal{
         return res;
     }
 
-    Solution Kruskal::kruskal(vector<Node>& nodes, vector<Edge>& edges){
-        vector<int> mst{};
+    vector<Edge> Kruskal::kruskal(vector<Node>& nodes, vector<Edge>& edges){
+        vector<Edge> mst{};
 
         // Negativos representam tamanho e positivo representa o pai
         vector<int>set(nodes.size(), -1);
@@ -89,21 +89,28 @@ namespace tspd::kruskal{
                     return n.getId() == id;
                 });
 
-                if(itUNode == nodes.end() || itVNode == nodes.end())
+                if(itUNode == nodes.end() || itVNode == nodes.end()){
+                    std::cout << "ERROR: Nodes not found!\n";
                     exit(-1);
+                }
 
                 Node u = *itUNode, 
                     v = *itVNode;
 
-                _addMST(mst, u, v);
+                mst.push_back(e);
+
                 _setUnion(set, u, v);
             }
+
+            if (mst.size() == nodes.size() - 1)
+                break;
         }
 
         // for(const auto& i : mst){
         //     std::cout << i << ' ';
         // }
 
-        return Solution(mst, {}, 0, 0, 0);
+        return mst;
     }
 }
+

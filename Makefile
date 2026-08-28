@@ -31,6 +31,7 @@ SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/utils/*.cpp) \
         $(wildcard $(SRC_DIR)/solution/*.cpp) \
         $(wildcard $(SRC_DIR)/kruskal/*.cpp) \
+        $(wildcard $(SRC_DIR)/agatz_solution/**/*.cpp) \
         $(wildcard $(SRC_DIR)/graphic/*.cpp)
 
 # Mapeia cada .cpp para o seu respectivo .o dentro de build/

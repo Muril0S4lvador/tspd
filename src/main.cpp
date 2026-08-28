@@ -16,7 +16,7 @@
 #include "tspd/tspd.hpp"
 #include "graphic/graphic.hpp"
 #include "solution/solution.hpp"
-#include "kruskal/kruskal.hpp"
+#include "agatz_solution/greedy_heuristic/greedy_heuristic.hpp"
 
 void setInterpreter();
 
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
         std::cout << instancia;
         std::vector<tspd::node::Node> nodes = instancia.getNodes();
         std::vector<tspd::edge::Edge> edges = instancia.getEdges();
-        tspd::solution::Solution s = tspd::kruskal::Kruskal::kruskal(nodes, edges);
+        tspd::solution::Solution s = tspd::greedyHeuristic::GreedyHeuristic::greedyHeuristic(instancia);
 
         tspd::graphic::Graphic graphic(instancia);
         graphic.draw();

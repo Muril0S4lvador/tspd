@@ -5,13 +5,13 @@ using std::vector;
 
 #include <algorithm>
 
-#include "../solution/solution.hpp"
+#include "../../solution/solution.hpp"
 using tspd::solution::Solution;
 
-#include "../edge/edge.hpp"
+#include "../../edge/edge.hpp"
 using tspd::edge::Edge;
 
-#include "../node/node.hpp"
+#include "../../node/node.hpp"
 using tspd::node::Node;
 
 
@@ -23,6 +23,6 @@ namespace tspd::kruskal{
             static bool _findUnion(vector<int>& set, int uId, int vId);
 
         public:
-            static Solution kruskal(vector<Node>& nodes, vector<Edge>& edges);
+            static vector<Edge> kruskal(vector<Node>& nodes, vector<Edge>& edges);
     };
 }
