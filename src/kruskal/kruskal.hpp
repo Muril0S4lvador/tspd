@@ -20,6 +20,7 @@ namespace tspd::kruskal{
         private:
             static void _addMST(vector<int>& mst, Node& u, Node& v);
             static void _setUnion(vector<int>& set, Node& u, Node& v);
+            static bool _findUnion(vector<int>& set, int uId, int vId);
 
         public:
             static Solution kruskal(vector<Node>& nodes, vector<Edge>& edges);
