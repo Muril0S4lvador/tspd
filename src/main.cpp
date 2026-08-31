@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
         tspd::graphic::Graphic graphic(instancia);
         graphic.draw();
 
+        graphic.drawSolution(s);
+
 
         // 5. Exibição dos resultados
         std::cout << "\n\n==========================================\n";

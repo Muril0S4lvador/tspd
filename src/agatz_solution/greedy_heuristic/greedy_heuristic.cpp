@@ -18,6 +18,6 @@ std::cout << "criando solucao gulosa ui\n\n";
         std::cout << '\n';
 
         // Aplicamos a heuristica greedy
-        return Solution{{}, {}, 0, 0, 0};
+        return Solution{truckRoute, {}, 0, 0, 0};
     }
 }

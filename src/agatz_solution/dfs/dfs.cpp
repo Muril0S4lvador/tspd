@@ -38,26 +38,3 @@ namespace tspd::dfs{
         return path;
     }
 }
-
-
-/*
-
-DFS(G, inicio):
-    para cada vértice v de G:
-        visitado[v] ← falso
-
-    para cada vértice v de G:
-        ordenar G[v] em ordem crescente
-
-    DFS_VISITA(inicio)
-
-
-DFS_VISITA(u):
-    visitado[u] ← verdadeiro
-    imprimir u
-
-    para cada v em G[u]:
-        se visitado[v] = falso:
-            DFS_VISITA(v)
-
-*/
