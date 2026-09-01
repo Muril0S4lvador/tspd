@@ -25,7 +25,10 @@ namespace tspd::greedyHeuristic{
      * proposed by Agatz (2016)
      */
     class GreedyHeuristic{
+        private:
+            void _greedyHeuristic(TSPD& instance, vector<int>& truckRoute, vector<int>& droneRoute);
+
         public:
-            static Solution greedyHeuristic(TSPD& instance);
+            static Solution getGreedyHeuristicSolution(TSPD& instance);
     };
 }

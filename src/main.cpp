@@ -51,13 +51,11 @@ int main(int argc, char* argv[]) {
         std::cout << instancia;
         std::vector<tspd::node::Node> nodes = instancia.getNodes();
         std::vector<tspd::edge::Edge> edges = instancia.getEdges();
-        tspd::solution::Solution s = tspd::greedyHeuristic::GreedyHeuristic::greedyHeuristic(instancia);
+        tspd::solution::Solution s = tspd::greedyHeuristic::GreedyHeuristic::getGreedyHeuristicSolution(instancia);
 
         tspd::graphic::Graphic graphic(instancia);
-        graphic.draw();
 
         graphic.drawSolution(s);
-
 
         // 5. Exibição dos resultados
         std::cout << "\n\n==========================================\n";

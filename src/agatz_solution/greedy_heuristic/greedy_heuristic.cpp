@@ -1,9 +1,76 @@
 #include "greedy_heuristic.hpp"
 
+
 namespace tspd::greedyHeuristic{
-    Solution GreedyHeuristic::greedyHeuristic(TSPD& instance){
-    // tspd::solution::Solution s = tspd::kruskal::Kruskal::kruskal(nodes, edges);
-std::cout << "criando solucao gulosa ui\n\n";
+
+    enum Label{
+        simple,
+        combined,
+        truck, 
+        drone
+    };
+
+    enum Operation{
+        MakeFly,
+        PushRight,
+        PushLeft,
+    }
+
+    struct bestApplication{
+        int currentNode;
+        Operation op;
+    }
+
+    int GreedyHeuristic::_makeFlySavings(int currentNode, TSPD& instance){
+        return instance.getDistance(currentNode, currentNode - 1)
+                + instance.getDistance(currentNode, currentNode + 1);
+                std::max(instance.getDistance(currentNode - 1, currentNode) + instance.getDistance(currentNode, currentNode + 1),
+                        instance.getDistance(currentNode - 1, currentNode + 1));
+    }
+
+    int GreedyHeuristic::_pushLeftSavings(int currentNode, int droneCurrentNode, TSPD& instance){
+        return instance.getDistance(currentNode - 1, currentNode) 
+        + instance.getDistance(droneCurrentNode, currentNode - 1) 
+        - instance.getDistance(droneCurrentNode, currentNode);
+    }
+
+    int GreedyHeuristic::_pushRightSavings(int currentNode, int droneCurrentNode, TSPD& instance){
+        return instance.getDistance(currentNode + 1, currentNode) 
+        + instance.getDistance(droneCurrentNode, currentNode + 1) 
+        - instance.getDistance(droneCurrentNode, currentNode);
+    }
+
+    bool GreedyHeuristic::_anySimpleNode(vector<Label>& nodes){
+        auto anyNode = std::find_if(nodes.begin(), nodes.end(), [](const Label& l){
+            return l == Label::simple;
+        });
+        return anyNode != nodes.end();
+    }
+
+    void GreedyHeuristic::_greedyHeuristic(TSPD& instance, vector<int>& truckRoute, vector<int>& droneRoute){
+        vector<Label> nodes (instance.getDimension(), Label::simple); 
+        bestApplication ba;
+
+        while(_anySimpleNode(nodes)){
+            for(int i = 0; i < instance.getDimension() - 1; i++){
+                int saving = _makeFlySavings(i, Operation::MakeFly);
+                if(_pushLeftSavings(i, d,instance) > saving){
+                    ba.currentNode = i;
+                    ba.op = Operation::PushLeft;
+                } else if(_pushRightSavings(i, d,instance) > saving){
+                    ba.currentNode = i;
+                    ba.op = Operation::PushRight;
+                } else {
+                    ba.currentNode = i;
+                    ba.op = Operation::MakeFly;
+                }
+            }
+        }
+        
+    }
+
+    Solution GreedyHeuristic::getGreedyHeuristicSolution(TSPD& instance){
+
         // Gera MST
         std::vector<node::Node> nodes = instance.getNodes();
         std::vector<edge::Edge> edges = instance.getEdges();
@@ -11,13 +78,12 @@ std::cout << "criando solucao gulosa ui\n\n";
 
         // Fazemos um DFS
         vector<int> truckRoute = dfs::DFS::getDFS(nodes, mst);
-
-        std::cout << '\n';
-        for(int& i : truckRoute)
-            std::cout << i << ' '; 
-        std::cout << '\n';
+        vector<int> droneRoute = {}
 
         // Aplicamos a heuristica greedy
+        _greedyHeuristic(instance, truckRoute, droneRoute);
+
+
         return Solution{truckRoute, {}, 0, 0, 0};
     }
 }
