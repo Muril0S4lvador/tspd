@@ -53,17 +53,10 @@ namespace tspd::greedyHeuristic{
 
         while(_anySimpleNode(nodes)){
             for(int i = 0; i < instance.getDimension() - 1; i++){
-                int saving = _makeFlySavings(i, Operation::MakeFly);
-                if(_pushLeftSavings(i, d,instance) > saving){
-                    ba.currentNode = i;
-                    ba.op = Operation::PushLeft;
-                } else if(_pushRightSavings(i, d,instance) > saving){
-                    ba.currentNode = i;
-                    ba.op = Operation::PushRight;
-                } else {
-                    ba.currentNode = i;
-                    ba.op = Operation::MakeFly;
-                }
+                int makeFlySavings = _makeFlySavings(i, instance);
+                int pushLeftSavings = _pushLeftSavings(i, d, instance);
+                int pushRightSavings = _pushRightSavings(i, d, instance);
+                
             }
         }
         
