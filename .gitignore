@@ -2,4 +2,3 @@ data/descompressed/
 build/
 .vscode/
 *.exe
-/.slide-build/node_modules/
