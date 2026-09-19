@@ -1,7 +1,10 @@
-#include "greedy_heuristic.hpp"
+#include <fstream>
+std::ofstream logFile(".slide-build/trace.txt");
+bool capture=false;
+#include "../src/agatz_solution/greedy_heuristic/greedy_heuristic.hpp"
 
-#include "../dfs/dfs.hpp"
-#include "../kruskal/kruskal.hpp"
+#include "../src/agatz_solution/dfs/dfs.hpp"
+#include "../src/agatz_solution/kruskal/kruskal.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -432,6 +435,13 @@ namespace {
             }
     };
 
+    void dump(const PartitionState& s, int op, int pos, long long saving) {
+ if(!capture) return;
+ logFile << "STATE " << op << " " << pos << " " << saving << " " << s.totalCost().duration << " " << s.totalCost().truck << " " << s.totalCost().drone << " " << s.simpleCount << "\n";
+ for(auto v:s.route) logFile<<v<<" "; logFile<<"\n";
+ for(auto v:s.labels) logFile<<static_cast<int>(v)<<" "; logFile<<"\n";
+ for(auto v:s.boundaries) logFile<<v<<" "; logFile<<"\n";
+ }
     using CandidateQueue = std::priority_queue<
         Candidate,
         std::vector<Candidate>,
@@ -541,6 +551,7 @@ Solution partitionRoute(
     PartitionState state(instance, closedRoute);
     CandidateQueue candidates;
     initializeCandidates(state, candidates);
+    dump(state,-1,-1,0);
 
     // Every iteration consumes at least one Simple label. A candidate is
     // selected by its local time saving, as in Agatz et al. If no move is
@@ -564,6 +575,7 @@ Solution partitionRoute(
                  ++position) {
                 if (state.labels[static_cast<std::size_t>(position)] == Label::Simple) {
                     state.markCombined(position);
+                    dump(state,3,position,0);
                     refreshCandidatesAround(state, position, candidates);
                     break;
                 }
@@ -572,6 +584,7 @@ Solution partitionRoute(
         }
 
         state.apply(best);
+        dump(state,static_cast<int>(best.operation),best.position,best.saving);
         refreshCandidatesAround(state, best.position, candidates);
     }
 
@@ -722,6 +735,8 @@ std::vector<int> iterativeImprovement(
         }
 
         if (bestCost < currentCost) {
+            logFile<<"ACCEPT "<<currentCost<<" "<<bestCost<<"\n"; for(int v:bestRoute) logFile<<v<<" "; logFile<<"\n";
+            logFile<<"ACCEPT_PARTITION\n"; capture=true; partitionRoute(instance,bestRoute); capture=false;
             currentRoute = std::move(bestRoute);
             currentCost = bestCost;
             improved = true;
@@ -744,3 +759,16 @@ Solution GreedyHeuristic::getGreedyHeuristicSolution(TSPD& instance) {
 }
 
 } // namespace tspd::greedyHeuristic
+
+#include "../src/instance_reader/instance_reader.hpp"
+int main(){
+ auto instance=tspd::instance_reader::InstanceReader::readInstance("data/descompressed/ulysses16/ulysses16.tsp");
+ auto nodes=instance.getNodes(); auto edges=instance.getEdges();
+ auto mst=tspd::kruskal::Kruskal::kruskal(nodes,edges);
+ for(auto e:mst) logFile<<"MST "<<e.getAId()<<" "<<e.getBId()<<" "<<e.getWeight()<<"\n";
+ auto initial=tspd::greedyHeuristic::buildInitialRoute(instance);
+ capture=true;logFile<<"INITIAL\n";tspd::greedyHeuristic::partitionRoute(instance,initial);capture=false;
+ auto final=tspd::greedyHeuristic::iterativeImprovement(instance,initial);
+ capture=true;logFile<<"FINAL\n";auto s=tspd::greedyHeuristic::partitionRoute(instance,final);
+ logFile<<"RESULT "<<s.getTotalCost()<<" "<<s.getTruckCost()<<" "<<s.getDroneCost()<<"\n";
+}

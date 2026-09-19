@@ -1,34 +1,26 @@
 #pragma once
 
-#include "../edge/edge.hpp"
-#include "../node/node.hpp"
+#include <vector>
 
 #include "../../solution/solution.hpp"
-using tspd::solution::Solution;
-
-#include "../kruskal/kruskal.hpp"
-using tspd::kruskal::Kruskal;
-
 #include "../../tspd/tspd.hpp"
-using tspd::tspd::TSPD;
 
-#include "../dfs/dfs.hpp"
-using tspd::dfs::DFS;
-
-#include <vector>
-using std::vector;
-
-namespace tspd::greedyHeuristic{
+namespace tspd::greedyHeuristic {
     /**
-     * @brief 
-     * Class that represents a greedy heuristic solution
-     * proposed by Agatz (2016)
+     * @brief Route-first/cluster-second greedy heuristic from Agatz et al.
+     *
+     * The current project exposes one distance matrix only. Consequently,
+     * the same matrix is used for truck and drone travel time by the
+     * implementation in the .cpp file.
      */
-    class GreedyHeuristic{
+    class GreedyHeuristic {
         private:
-            void _greedyHeuristic(TSPD& instance, vector<int>& truckRoute, vector<int>& droneRoute);
+            static solution::Solution _greedyHeuristic(
+                ::tspd::tspd::TSPD& instance,
+                const std::vector<int>& initialRoute);
 
         public:
-            static Solution getGreedyHeuristicSolution(TSPD& instance);
+            static solution::Solution getGreedyHeuristicSolution(
+                ::tspd::tspd::TSPD& instance);
     };
 }
