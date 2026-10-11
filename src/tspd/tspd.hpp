@@ -16,41 +16,41 @@ namespace tspd::tspd {
     class TSPD {
         private:
             string name_;
-            string comment_;
             string type_;
             int dimension_;
-            string edge_weight_type_;
+            double truckSpeed_;
+            double droneSpeed_;
+            node::Node depot_;
             vector<node::Node> nodes_;
             vector<Edge> edges_;
 
-            
-
         public:
             TSPD(string name,
-                 string comment,
-                 string type,
-                 int dimension,
-                 string edge_weight_type,
-                 vector<node::Node> nodes,
-                 vector<Edge> edges = {});
+                string type,
+                int dimension,
+                double truckSpeed, 
+                double droneSpeed,
+                node::Node depot,
+                vector<node::Node> nodes,
+                vector<Edge> edges = {});
 
             string getName() const;
-            string getComment() const;
             string getType() const;
             int getDimension() const;
-            string getEdgeWeightType() const;
-            vector<node::Node> getNodes() const;
-            vector<Edge> getEdges() const;
+            double getTruckSpeed() const;
+            double getDroneSpeed() const;
             int getDistance(int firstNodeId, int secondNodeId) const;
+            vector<node::Node> getNodes() const;
+            vector<edge::Edge> getEdges() const;
 
             // Sobrecarga de Operador <<
             friend std::ostream& operator<<(std::ostream& os, const TSPD& tspd) {
-                os << "\nInstância " << tspd.name_ << '\n';
-                os << "Comment(s): " << tspd.comment_ << '\n';
-                os << "Type: " << tspd.type_ << '\n';
-                os << "Edge Weight Type: " << tspd.edge_weight_type_ << '\n';
-                os << "Dimension: " << tspd.dimension_ << '\n';
-                // os << "Nodes: \n" << tspd.nodes_;
+                os << "\nInstância " << tspd.getName() << '\n';
+                os << "Type: " << tspd.getType() << '\n';
+                os << "Dimension: " << tspd.getDimension() << '\n';
+                os << "Truck Speed: " << tspd.getTruckSpeed() << '\n';
+                os << "Drone Speed: " << tspd.getDroneSpeed() << '\n';
+                // os << "Nodes: \n" << tspd.getNodes();
                 return os;
             }
     };

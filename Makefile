@@ -24,11 +24,10 @@ INC_FLAGS := -Isrc -Isrc/edge -Isrc/instance_reader -Isrc/node -Isrc/tspd -Isrc/
 # ==============================================================================
 # Busca todos os arquivos .cpp nas subpastas conhecidas de src/
 SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
-        $(wildcard $(SRC_DIR)/edge/*.cpp) \
-        $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \
-        $(wildcard $(SRC_DIR)/node/*.cpp) \
         $(wildcard $(SRC_DIR)/tspd/*.cpp) \
-        $(wildcard $(SRC_DIR)/utils/*.cpp) \
+        $(wildcard $(SRC_DIR)/node/*.cpp) \
+        $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \
+        $(wildcard $(SRC_DIR)/edge/*.cpp) \
         $(wildcard $(SRC_DIR)/solution/*.cpp) \
         $(wildcard $(SRC_DIR)/kruskal/*.cpp) \
         $(wildcard $(SRC_DIR)/agatz_solution/**/*.cpp) \

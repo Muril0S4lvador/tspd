@@ -47,11 +47,11 @@ int main(int argc, char* argv[]) {
         tspd::tspd::TSPD instancia = tspd::instance_reader::InstanceReader::readInstance(caminho_instancia);
         auto fim = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tempo_execucao = fim - inicio;
+        // std::cout << instancia;
 
-        std::cout << instancia;
-        std::vector<tspd::node::Node> nodes = instancia.getNodes();
-        std::vector<tspd::edge::Edge> edges = instancia.getEdges();
-        tspd::solution::Solution s = tspd::greedyHeuristic::GreedyHeuristic::getGreedyHeuristicSolution(instancia);
+        // std::cout << instancia;
+        tspd::greedyHeuristic::GreedyHeuristic greedy;
+        tspd::solution::Solution s = greedy.Solve(instancia);
 
         tspd::graphic::Graphic graphic(instancia);
 
@@ -60,10 +60,11 @@ int main(int argc, char* argv[]) {
         // 5. Exibição dos resultados
         std::cout << "\n\n==========================================\n";
         std::cout << "  Execucao concluida com sucesso!\n";
-        std::cout << "  Tempo de execucao: " << tempo_execucao.count() << " segundos\n";
+        std::cout << "  Tempo de leitura: " << tempo_execucao.count() << " segundos\n";
+        std::cout << "  Tempo de otimizacao: " << greedy.getDuration().count() << " segundos\n";
         std::cout << "==========================================\n";
 
-        std::cout << s;
+        // std::cout << s;
 
     } catch (const std::exception& e) {
         // Captura erros lançados durante a execução (ex: arquivo não encontrado, erro de leitura)

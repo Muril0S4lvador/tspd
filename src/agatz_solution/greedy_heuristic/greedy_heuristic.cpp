@@ -4,6 +4,7 @@
 #include "../kruskal/kruskal.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <queue>
 #include <set>
@@ -33,16 +34,16 @@ namespace {
     };
 
     struct SegmentCost {
-        long long duration = 0;
-        long long truck = 0;
-        long long drone = 0;
+        double duration = 0;
+        double truck = 0;
+        double drone = 0;
         bool feasible = true;
     };
 
     struct Candidate {
         int position = -1;
         Operation operation = Operation::MakeFly;
-        long long saving = std::numeric_limits<long long>::lowest();
+        double saving = std::numeric_limits<double>::lowest();
         std::size_t version = 0;
     };
 
@@ -73,10 +74,10 @@ namespace {
         }
     };
 
-    int toSolutionCost(long long cost) {
+    int toSolutionCost(double cost) {
         if (cost <= 0) return 0;
-        const long long maximum = std::numeric_limits<int>::max();
-        return static_cast<int>(std::min(cost, maximum));
+        const double maximum = std::numeric_limits<int>::max();
+        return static_cast<int>(std::ceil(std::min(cost, maximum)));
     }
 
     bool isPermutation(const std::vector<int>& route, int dimension) {
@@ -125,7 +126,7 @@ namespace {
             nodes.clear();
             nodes.reserve(static_cast<std::size_t>(std::max(0, dimension)));
             for (int nodeId = 1; nodeId <= dimension; ++nodeId)
-                nodes.emplace_back(nodeId, 0.0, 0.0);
+                nodes.emplace_back(0.0, 0.0, nodeId, "");
         }
 
         return nodes;
@@ -137,7 +138,10 @@ namespace {
         if (dimension == 1) return {1};
 
         std::vector<Node> nodes = nodesWithValidIds(instance);
-        std::vector<Edge> edges = instance.getEdges();
+        std::vector<Edge> edges;
+        for (int first = 1; first <= dimension; ++first)
+            for (int second = first + 1; second <= dimension; ++second)
+                edges.emplace_back(first, second, instance.getDistance(first, second));
 
         std::vector<int> route;
         if (!edges.empty()) {
@@ -161,7 +165,7 @@ namespace {
             std::vector<Label> labels;
             std::set<int> boundaries;
             std::set<int> dronePositions;
-            std::vector<long long> prefixRouteDistance;
+            std::vector<double> prefixRouteDistance;
             std::vector<std::size_t> candidateVersions;
             int simpleCount;
 
@@ -192,10 +196,10 @@ namespace {
                 }
             }
 
-            long long distance(int firstPosition, int secondPosition) const {
+            double distance(int firstPosition, int secondPosition) const {
                 // Route positions map directly to vertex ids in 1..N; the
                 // final position is the repeated depot.
-                return static_cast<long long>(instance.getDistance(
+                return static_cast<double>(instance.getDistance(
                     route[static_cast<std::size_t>(firstPosition)],
                     route[static_cast<std::size_t>(secondPosition)]));
             }
@@ -257,6 +261,7 @@ namespace {
                 if (dronePosition == -1) {
                     result.truck = prefixRouteDistance[static_cast<std::size_t>(end)] -
                                    prefixRouteDistance[static_cast<std::size_t>(begin)];
+                    result.truck /= instance.getTruckSpeed();
                     result.duration = result.truck;
                     return result;
                 }
@@ -274,6 +279,8 @@ namespace {
                     prefixRouteDistance[static_cast<std::size_t>(dronePosition + 1)];
                 result.drone = distance(begin, dronePosition) +
                                distance(dronePosition, end);
+                result.truck /= instance.getTruckSpeed();
+                result.drone /= instance.getDroneSpeed();
                 result.duration = std::max(result.truck, result.drone);
                 return result;
             }
@@ -353,36 +360,36 @@ namespace {
                 return merged.feasible && numberOfDroneNodes(position, next) == 1;
             }
 
-            long long savingForMakeFly(int position) const {
+            double savingForMakeFly(int position) const {
                 const int previous = previousBoundary(position);
                 const int next = nextBoundary(position);
                 const SegmentCost before = segmentCost(previous, position);
                 const SegmentCost after = segmentCost(position, next);
                 const SegmentCost candidate = segmentCost(previous, next, position);
                 if (!before.feasible || !after.feasible || !candidate.feasible)
-                    return std::numeric_limits<long long>::lowest();
+                    return std::numeric_limits<double>::lowest();
                 return before.duration + after.duration - candidate.duration;
             }
 
-            long long savingForPushLeft(int position) const {
+            double savingForPushLeft(int position) const {
                 const int combinedPosition = position - 1;
                 const int previous = previousBoundary(combinedPosition);
                 const SegmentCost before = segmentCost(previous, combinedPosition);
                 const SegmentCost after = segmentCost(combinedPosition, position);
                 const SegmentCost candidate = segmentCost(previous, position);
                 if (!before.feasible || !after.feasible || !candidate.feasible)
-                    return std::numeric_limits<long long>::lowest();
+                    return std::numeric_limits<double>::lowest();
                 return before.duration + after.duration - candidate.duration;
             }
 
-            long long savingForPushRight(int position) const {
+            double savingForPushRight(int position) const {
                 const int combinedPosition = position + 1;
                 const int next = nextBoundary(combinedPosition);
                 const SegmentCost before = segmentCost(position, combinedPosition);
                 const SegmentCost after = segmentCost(combinedPosition, next);
                 const SegmentCost candidate = segmentCost(position, next);
                 if (!before.feasible || !after.feasible || !candidate.feasible)
-                    return std::numeric_limits<long long>::lowest();
+                    return std::numeric_limits<double>::lowest();
                 return before.duration + after.duration - candidate.duration;
             }
 
@@ -476,14 +483,11 @@ namespace {
     void refreshCandidatesAround(PartitionState& state,
                                  int center,
                                  CandidateQueue& queue) {
-        // Every operation changes labels/boundaries only at center-1,
-        // center, or center+1. The candidate savings depend on at most the
-        // neighboring operation boundaries, so this bounded neighborhood is
-        // sufficient to invalidate and rebuild affected candidates.
-        constexpr int refreshRadius = 5;
-        const int lastPosition = static_cast<int>(state.route.size()) - 1;
-        const int firstPosition = std::max(1, center - refreshRadius);
-        const int finalPosition = std::min(lastPosition - 1, center + refreshRadius);
+        // An extended flight can affect candidates beyond adjacent positions.
+        (void)center;
+        queue = CandidateQueue{};
+        const int firstPosition = 1;
+        const int finalPosition = static_cast<int>(state.route.size()) - 2;
 
         for (int position = firstPosition; position <= finalPosition; ++position) {
             ++state.candidateVersions[static_cast<std::size_t>(position)];
@@ -509,7 +513,7 @@ namespace {
             state.candidateVersions[static_cast<std::size_t>(position)])
             return false;
 
-        long long saving = std::numeric_limits<long long>::lowest();
+        double saving = std::numeric_limits<double>::lowest();
         bool feasible = false;
         switch (candidate.operation) {
             case Operation::MakeFly:
@@ -558,7 +562,7 @@ Solution partitionRoute(
             }
         }
 
-        if (!foundCandidate) {
+        if (!foundCandidate || best.saving <= 0.0) {
             for (int position = 1;
                  position < static_cast<int>(state.route.size()) - 1;
                  ++position) {
@@ -612,7 +616,7 @@ std::vector<int> iterativeImprovement(
         return initialRoute;
 
     std::vector<int> currentRoute = initialRoute;
-    long long currentCost = partitionRoute(instance, currentRoute).getTotalCost();
+    double currentCost = partitionRoute(instance, currentRoute).getTotalCost();
 
     // The paper evaluates the complete neighborhood. That is practical for
     // small routes, while the current public API has no separate fast
@@ -631,10 +635,10 @@ std::vector<int> iterativeImprovement(
     while (improved) {
         improved = false;
         std::vector<int> bestRoute = currentRoute;
-        long long bestCost = currentCost;
+        double bestCost = currentCost;
 
         const auto evaluateCandidate = [&](std::vector<int> candidateRoute) {
-            const long long candidateCost =
+            const double candidateCost =
                 partitionRoute(instance, candidateRoute).getTotalCost();
             if (candidateCost < bestCost) {
                 bestCost = candidateCost;
@@ -738,7 +742,10 @@ Solution GreedyHeuristic::_greedyHeuristic(
     return partitionRoute(instance, improvedRoute);
 }
 
-Solution GreedyHeuristic::getGreedyHeuristicSolution(TSPD& instance) {
+Solution GreedyHeuristic::Optimize(TSPD& instance) {
+    if (!std::isfinite(instance.getTruckSpeed()) || instance.getTruckSpeed() <= 0.0 ||
+        !std::isfinite(instance.getDroneSpeed()) || instance.getDroneSpeed() <= 0.0)
+        throw std::invalid_argument("Truck and drone speeds must be positive and finite");
     const std::vector<int> initialRoute = buildInitialRoute(instance);
     return _greedyHeuristic(instance, initialRoute);
 }

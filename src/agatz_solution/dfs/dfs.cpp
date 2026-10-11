@@ -34,11 +34,6 @@ namespace tspd::dfs{
 
         vector<int> path = {};
         _recurseDFS(1, visited, path, adjacencyList);
-
-        for(auto& e : path){
-            std::cout << e << ' ';
-        }
-        
         return path;
     }
 }
