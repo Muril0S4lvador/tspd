@@ -1,4 +1,4 @@
-#include "Graphic.hpp"
+#include "graphic.hpp"
 
 
 
@@ -171,6 +171,93 @@ namespace tspd::graphic{
         window.draw(custo_total);
     }
 
+    void Graphic::_drawNodeNames(sf::RenderWindow& window,
+                                 const vector<node::Node>& nodes,
+                                 const sf::View& view,
+                                 float radius,
+                                 const sf::Font& font) const {
+        const float pixel_radius = radius * window.getSize().x / view.getSize().x;
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            const std::string name = nodes[i].getName();
+            sf::Text text(font, sf::String::fromUtf8(
+                name.begin(), name.end()), 13);
+            const auto bounds = text.getLocalBounds();
+            text.setOrigin(bounds.position + bounds.size / 2.f);
+            const float scale = std::min(1.f, pixel_radius * 1.5f /
+                std::max(1.f, std::max(bounds.size.x, bounds.size.y)));
+            text.setScale({scale, scale});
+            const auto pixel = window.mapCoordsToPixel(_getNodePosition(nodes[i].getId(), nodes), view);
+            text.setPosition({static_cast<float>(pixel.x), static_cast<float>(pixel.y)});
+            text.setFillColor(i == 0 ? sf::Color::Black : sf::Color::White);
+            window.draw(text);
+        }
+    }
+
+    void Graphic::_drawEdgeTooltip(sf::RenderWindow& window,
+                                   const vector<int>& truckRoute,
+                                   const vector<int>& droneRoute,
+                                   const vector<node::Node>& nodes,
+                                   const sf::View& view,
+                                   const sf::Font& font) const {
+        if (!window.hasFocus()) return;
+        const auto mouse = sf::Mouse::getPosition(window);
+        if (mouse.x < 0 || mouse.y < 0 || mouse.x >= static_cast<int>(window.getSize().x) ||
+            mouse.y >= static_cast<int>(window.getSize().y)) return;
+
+        std::string description;
+        const auto inspectRoute = [&](const vector<int>& route, const std::string& type) {
+            if (route.size() < 2) return;
+            float closest = 7.f;
+            int first = -1, second = -1;
+            for (size_t i = 0; i < route.size(); ++i) {
+                const int a = route[i], b = route[(i + 1) % route.size()];
+                if (a == b) continue;
+                const auto start = window.mapCoordsToPixel(_getNodePosition(a, nodes), view);
+                const auto end = window.mapCoordsToPixel(_getNodePosition(b, nodes), view);
+                const float dx = static_cast<float>(end.x - start.x);
+                const float dy = static_cast<float>(end.y - start.y);
+                const float length_squared = dx * dx + dy * dy;
+                const float t = length_squared == 0.f ? 0.f : std::clamp(
+                    ((mouse.x - start.x) * dx + (mouse.y - start.y) * dy) / length_squared, 0.f, 1.f);
+                const float distance = std::hypot(mouse.x - start.x - t * dx,
+                                                  mouse.y - start.y - t * dy);
+                if (distance < closest) {
+                    closest = distance;
+                    first = a;
+                    second = b;
+                }
+            }
+            if (first == -1) return;
+            const auto name = [&](int id) {
+                return std::find_if(nodes.begin(), nodes.end(),
+                    [id](const node::Node& n) { return n.getId() == id; })->getName();
+            };
+            if (!description.empty()) description += "\n\n";
+            description += name(first) + " -- " + name(second) + "\n" + type + "\n" +
+                           std::to_string(tspd_.getDistance(first, second)) + " Weight";
+        };
+        inspectRoute(truckRoute, "Truck");
+        inspectRoute(droneRoute, "Drone");
+        if (description.empty()) return;
+
+        sf::Text text(font, sf::String::fromUtf8(description.begin(), description.end()), 16);
+        text.setFillColor(sf::Color::Black);
+        const auto bounds = text.getLocalBounds();
+        const sf::Vector2f size = bounds.size + sf::Vector2f{20.f, 20.f};
+        const float x = std::clamp(mouse.x + 14.f, 0.f,
+            std::max(0.f, static_cast<float>(window.getSize().x) - size.x));
+        const float y = std::clamp(mouse.y + 14.f, 0.f,
+            std::max(0.f, static_cast<float>(window.getSize().y) - size.y));
+        sf::RectangleShape background(size);
+        background.setPosition({x, y});
+        background.setFillColor(sf::Color(255, 255, 255, 245));
+        background.setOutlineColor(sf::Color(100, 100, 100));
+        background.setOutlineThickness(1.f);
+        text.setPosition(sf::Vector2f{x + 10.f, y + 10.f} - bounds.position);
+        window.draw(background);
+        window.draw(text);
+    }
+
     void Graphic::draw(){
 
         sf::RenderWindow window(sf::VideoMode(_WINDOW_SIZE_), "Grafo TSPD - " + tspd_.getName());
@@ -185,6 +272,8 @@ namespace tspd::graphic{
 
         float raio = tamanho_view * _NODE_RADIUS_RATIO_;
         vector<sf::CircleShape> vertices = _createVertices(nodes, raio);
+        sf::Font font;
+        const bool font_available = font.openFromFile("C:/Windows/Fonts/arial.ttf");
 
         while (window.isOpen()) {
             while (const auto event = window.pollEvent()) {
@@ -194,11 +283,16 @@ namespace tspd::graphic{
             }
 
             window.clear(_WINDOW_BACKGROUND_COLOR_);
+            window.setView(view);
 
             for (const auto& vertice : vertices) {
                 window.draw(vertice);
             }
 
+            if (font_available) {
+                window.setView(window.getDefaultView());
+                _drawNodeNames(window, nodes, view, raio, font);
+            }
             window.display();
         }
 
@@ -240,7 +334,9 @@ namespace tspd::graphic{
 
             if (legenda_disponivel) {
                 window.setView(window.getDefaultView());
+                _drawNodeNames(window, nodes, view, raio, font);
                 _drawLegend(window, s, font);
+                _drawEdgeTooltip(window, truck_nodes, drone_nodes, nodes, view, font);
             }
 
             window.display();

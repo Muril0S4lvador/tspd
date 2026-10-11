@@ -21,7 +21,7 @@ using tspd::solution::Solution;
 #define _WINDOW_VIEW_ZOOM_ 1.07f
 #define _WINDOW_BACKGROUND_COLOR_ sf::Color(240, 240, 240)
 // representa a proporção do tamanho da tela que o nó vai ocupar
-#define _NODE_RADIUS_RATIO_ 0.005f
+#define _NODE_RADIUS_RATIO_ 0.0225f
 
 #define _DEPOSIT_COLOR_ sf::Color(0, 255, 255)
 #define _DEPOSIT_OUTLINE_COLOR_ sf::Color::Black
@@ -51,6 +51,17 @@ namespace tspd::graphic{
             void _drawLegend(sf::RenderWindow& window,
                              const Solution& solution,
                              const sf::Font& font) const;
+            void _drawNodeNames(sf::RenderWindow& window,
+                                const vector<node::Node>& nodes,
+                                const sf::View& view,
+                                float radius,
+                                const sf::Font& font) const;
+            void _drawEdgeTooltip(sf::RenderWindow& window,
+                                  const vector<int>& truckRoute,
+                                  const vector<int>& droneRoute,
+                                  const vector<node::Node>& nodes,
+                                  const sf::View& view,
+                                  const sf::Font& font) const;
 
         public:
             Graphic(TSPD tspd);
