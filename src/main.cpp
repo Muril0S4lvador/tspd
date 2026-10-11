@@ -43,13 +43,10 @@ int main(int argc, char* argv[]) {
         // 2. Início da medição de tempo
         
         auto inicio = std::chrono::high_resolution_clock::now();
-        std::cout << "[1/2] Lendo dados da instância...\n";
         tspd::tspd::TSPD instancia = tspd::instance_reader::InstanceReader::readInstance(caminho_instancia);
         auto fim = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tempo_execucao = fim - inicio;
-        // std::cout << instancia;
 
-        // std::cout << instancia;
         tspd::greedyHeuristic::GreedyHeuristic greedy;
         tspd::solution::Solution s = greedy.Solve(instancia);
 
@@ -62,6 +59,7 @@ int main(int argc, char* argv[]) {
         std::cout << "  Execucao concluida com sucesso!\n";
         std::cout << "  Tempo de leitura: " << tempo_execucao.count() << " segundos\n";
         std::cout << "  Tempo de otimizacao: " << greedy.getDuration().count() << " segundos\n";
+        std::cout << "  Tempo total: " << greedy.getDuration().count() + tempo_execucao.count() << " segundos\n";
         std::cout << "==========================================\n";
 
         // std::cout << s;

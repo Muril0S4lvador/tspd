@@ -45,7 +45,8 @@ namespace tspd::instance_reader {
     TSPD InstanceReader::readInstance(const string& filePath) {
         ifstream file(filePath);
         if (!file.is_open()) throw std::invalid_argument("Fail to open " + filePath);
-
+        else std::cout << "Reading instance " << filePath << '\n';
+        
         double truckSpeed = 0.0, droneSpeed = 0.0;
         int dimension = 0;
 

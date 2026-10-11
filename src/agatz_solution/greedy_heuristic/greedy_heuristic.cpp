@@ -743,6 +743,7 @@ Solution GreedyHeuristic::_greedyHeuristic(
 }
 
 Solution GreedyHeuristic::Optimize(TSPD& instance) {
+    std::cout << "\nInitializing Greedy Heuristic\n";
     if (!std::isfinite(instance.getTruckSpeed()) || instance.getTruckSpeed() <= 0.0 ||
         !std::isfinite(instance.getDroneSpeed()) || instance.getDroneSpeed() <= 0.0)
         throw std::invalid_argument("Truck and drone speeds must be positive and finite");
