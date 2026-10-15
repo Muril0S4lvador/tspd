@@ -42,7 +42,7 @@ namespace tspd::tspd {
             int getDimension() const;
             double getTruckSpeed() const;
             double getDroneSpeed() const;
-            int getDistance(int firstNodeId, int secondNodeId) const;
+            double getDistance(int firstNodeId, int secondNodeId) const; // Propaga distancias decimais aos algoritmos e a referencia.
             vector<node::Node> getNodes() const;
             vector<edge::Edge> getEdges() const;
             bool hasLiteratureSolution() const;

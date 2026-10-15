@@ -6,29 +6,25 @@
 #include <stdexcept>
 
 namespace tspd::edge {
-    Edge::Edge(int idA, int idB, int weight)
+    Edge::Edge(int idA, int idB, double weight) // Armazena o peso real em vez de receber um inteiro.
         : idA_(std::min(idA, idB)),
           idB_(std::max(idA, idB)),
           weight_(weight) {
         if (idA < 0 || idB < 0 || idA == idB)
             throw std::invalid_argument("An edge must connect two distinct nonnegative node ids");
-        if (weight < 0)
+        if (!std::isfinite(weight) || weight < 0.0) // Rejeita tambem NaN e infinito em pesos decimais.
             throw std::invalid_argument("An edge weight cannot be negative");
     }
 
     int Edge::getAId() const { return idA_; }
     int Edge::getBId() const { return idB_; }
-    int Edge::getWeight() const { return weight_; }
+    double Edge::getWeight() const { return weight_; } // Nao descarta a parte fracionaria.
 
-    int Edge::convertWeight(double weight) {
+    double Edge::convertWeight(double weight) { // Mantem a validacao usada pelo leitor sem arredondamento.
         if (!std::isfinite(weight) || weight < 0.0)
             throw std::invalid_argument("Invalid edge weight");
 
-        const double convertedWeight = std::ceil(weight);
-        if (convertedWeight > std::numeric_limits<int>::max())
-            throw std::invalid_argument("Edge weight does not fit in int");
-
-        return static_cast<int>(convertedWeight);
+        return weight; // Mantem a distancia euclidiana original para comparar com a referencia.
     }
 
     std::size_t Edge::compactIndex(int dimension,
@@ -49,7 +45,7 @@ namespace tspd::edge {
         return first * (2 * nodeCount - first - 1) / 2 + second - first - 1;
     }
 
-    int Edge::getWeight(const std::vector<Edge>& edges,
+    double Edge::getWeight(const std::vector<Edge>& edges, // Preserva o peso real ao consultar uma aresta.
                         int dimension,
                         int firstNodeId,
                         int secondNodeId) {

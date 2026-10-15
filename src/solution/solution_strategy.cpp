@@ -6,6 +6,7 @@ namespace tspd::solution {
         start_ = Clock::now();
         end_ = start_;
         try {
+            std::cout << "Optimization " << this->getName() << " Initialized.\n";
             Solution result = Optimize(instance);
             end_ = Clock::now();
             std::cout << "Optimization " << this->getName() << " Finalized.\n";

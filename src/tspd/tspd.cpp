@@ -37,7 +37,7 @@ namespace tspd::tspd {
         literatureSolution_ = std::move(literatureSolution);
     }
 
-    int TSPD::getDistance(int firstNodeId, int secondNodeId) const {
+    double TSPD::getDistance(int firstNodeId, int secondNodeId) const { // Evita truncar o peso double retornado por Edge.
         return Edge::getWeight(edges_, dimension_, firstNodeId, secondNodeId);
     }
 }

@@ -8,20 +8,20 @@ namespace tspd::edge {
         private:
             int idA_;
             int idB_;
-            int weight_;
+            double weight_; // Preserva a distancia euclidiana sem arredondar cada aresta.
 
         public:
-            Edge(int idA, int idB, int weight);
+            Edge(int idA, int idB, double weight); // Aceita pesos fracionarios desde a leitura.
 
             int getAId() const;
             int getBId() const;
-            int getWeight() const;
+            double getWeight() const; // Devolve o peso sem truncamento.
 
-            static int convertWeight(double weight);
+            static double convertWeight(double weight); // Valida o peso sem converter para inteiro.
             static std::size_t compactIndex(int dimension,
                                             int firstNodeId,
                                             int secondNodeId);
-            static int getWeight(const std::vector<Edge>& edges,
+            static double getWeight(const std::vector<Edge>& edges, // Preserva decimais nas consultas do armazenamento compacto.
                                  int dimension,
                                  int firstNodeId,
                                  int secondNodeId);

@@ -10,18 +10,18 @@ namespace tspd::solution{
         private:
             vector<int> truckNodes_;
             vector<int> droneNodes_;
-            int totalCost_;
-            int truckCost_;
-            int droneCost_;
+            double totalCost_; // Preserva custos fracionarios calculados pelo particionamento.
+            double truckCost_; // Preserva custos fracionarios calculados pelo particionamento.
+            double droneCost_; // Preserva custos fracionarios calculados pelo particionamento.
 
         public:
             Solution(vector<int> truckNodes, 
                     vector<int> droneNodes,
-                    int totalCost, int truckCost, int droneCost);
+                    double totalCost, double truckCost, double droneCost); // Preserva custos fracionarios calculados pelo particionamento.
 
-            int getTotalCost() const;
-            int getTruckCost() const;
-            int getDroneCost() const;
+            double getTotalCost() const; // Preserva custos fracionarios calculados pelo particionamento.
+            double getTruckCost() const; // Preserva custos fracionarios calculados pelo particionamento.
+            double getDroneCost() const; // Preserva custos fracionarios calculados pelo particionamento.
 
             vector<int> getTruckNodes() const;
             vector<int> getDroneNodes() const;

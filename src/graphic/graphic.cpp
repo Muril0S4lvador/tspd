@@ -14,7 +14,7 @@ namespace {
     struct EdgeMembership {
         OverlaySource source;
         OverlayVehicle vehicle;
-        int weight;
+        double weight; // Preserva os pesos reais apresentados na visualizacao.
     };
 
     struct OverlayGeometry {
@@ -42,7 +42,7 @@ namespace {
                        int second,
                        OverlaySource source,
                        OverlayVehicle vehicle,
-                       int weight) {
+                       double weight) { // Evita truncar as distancias recebidas das duas solucoes.
         if (first == second) return;
         const auto key = std::minmax(first, second);
         auto [it, inserted] = geometries.try_emplace(

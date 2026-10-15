@@ -74,12 +74,6 @@ namespace {
         }
     };
 
-    int toSolutionCost(double cost) {
-        if (cost <= 0) return 0;
-        const double maximum = std::numeric_limits<int>::max();
-        return static_cast<int>(std::ceil(std::min(cost, maximum)));
-    }
-
     bool isPermutation(const std::vector<int>& route, int dimension) {
         if (dimension <= 0 || route.size() != static_cast<std::size_t>(dimension))
             return false;
@@ -602,9 +596,9 @@ Solution partitionRoute(
     return Solution{
         truckRoute,
         droneRoute,
-        toSolutionCost(total.duration),
-        toSolutionCost(total.truck),
-        toSolutionCost(total.drone)
+        total.duration, // Preserva o tempo sincronizado sem arredondar o custo final.
+        total.truck, // Preserva o custo decimal do caminhao.
+        total.drone // Preserva o custo decimal dos voos.
     };
 }
 
@@ -742,7 +736,6 @@ Solution GreedyHeuristic::_greedyHeuristic(
 }
 
 Solution GreedyHeuristic::Optimize(TSPD& instance) {
-    std::cout << "\nInitializing Greedy Heuristic\n";
     if (!std::isfinite(instance.getTruckSpeed()) || instance.getTruckSpeed() <= 0.0 ||
         !std::isfinite(instance.getDroneSpeed()) || instance.getDroneSpeed() <= 0.0)
         throw std::invalid_argument("Truck and drone speeds must be positive and finite");

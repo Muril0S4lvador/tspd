@@ -17,6 +17,7 @@
 #include "graphic/graphic.hpp"
 #include "solution/solution.hpp"
 #include "agatz_solution/greedy_heuristic/greedy_heuristic.hpp"
+#include "agatz_solution/exact_partiotioning_algorithm/exactPartitioning.hpp"
 
 void setInterpreter();
 
@@ -47,19 +48,23 @@ int main(int argc, char* argv[]) {
         auto fim = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> tempo_execucao = fim - inicio;
 
-        tspd::greedyHeuristic::GreedyHeuristic greedy;
-        tspd::solution::Solution s = greedy.Solve(instancia);
+        // tspd::greedyHeuristic::GreedyHeuristic greedy;
+        // tspd::solution::Solution s = greedy.Solve(instancia);
+
+        tspd::exactPartitioning::ExactPartitioning dp;
+        tspd::solution::Solution s2 = dp.Solve(instancia);
 
         tspd::graphic::Graphic graphic(instancia);
 
-        graphic.drawSolution(s);
+        graphic.drawSolution(s2);
 
         // 5. Exibição dos resultados
         std::cout << "\n\n==========================================\n";
         std::cout << "  Execucao concluida com sucesso!\n";
         std::cout << "  Tempo de leitura: " << tempo_execucao.count() << " segundos\n";
-        std::cout << "  Tempo de otimizacao: " << greedy.getDuration().count() << " segundos\n";
-        std::cout << "  Tempo total: " << greedy.getDuration().count() + tempo_execucao.count() << " segundos\n";
+        // std::cout << "  Tempo de otimizacao: " << greedy.getDuration().count() << " segundos\n";
+        std::cout << "  Tempo de otimizacao 2: " << dp.getDuration().count() << " segundos\n";
+        std::cout << "  Tempo total: " << dp.getDuration().count() + tempo_execucao.count() << " segundos\n";
         std::cout << "==========================================\n";
 
         // std::cout << s;
