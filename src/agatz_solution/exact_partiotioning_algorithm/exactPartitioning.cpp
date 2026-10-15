@@ -192,8 +192,6 @@ Solution ExactPartitioning::Optimize(TSPD& instance) { // Mantem a estrutura nec
     const auto initialRoute = buildInitialRoute(instance); // Constroi a ordem inicial antes da busca local.
     const auto edges = instance.getEdges(); // Reutiliza as mesmas arestas em todos os vizinhos.
     const auto route = iterativeImprovement(instance, initialRoute, edges); // Melhora a ordem com VND avaliado pelo particionamento exato do TSP-D.
-    for (auto e : route)
-        std::cout << e << " ";
     evaluateRoute(instance, route, edges); // Restaura P e M da rota aceita, pois o ultimo vizinho testado pode ter sido rejeitado.
     return getSolution(route, edges); // Substitui a funcao livre com assinatura incompatível.
 } 
