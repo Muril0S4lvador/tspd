@@ -84,9 +84,9 @@ namespace {
         if (dimension <= 0 || route.size() != static_cast<std::size_t>(dimension))
             return false;
 
-        std::vector<bool> seen(static_cast<std::size_t>(dimension) + 1, false);
+        std::vector<bool> seen(static_cast<std::size_t>(dimension), false);
         for (const int nodeId : route) {
-            if (nodeId < 1 || nodeId > dimension || seen[nodeId])
+            if (nodeId < 0 || nodeId >= dimension || seen[nodeId])
                 return false;
             seen[nodeId] = true;
         }
@@ -98,7 +98,7 @@ namespace {
         if (dimension <= 0) return route;
 
         route.reserve(static_cast<std::size_t>(dimension));
-        for (int nodeId = 1; nodeId <= dimension; ++nodeId)
+        for (int nodeId = 0; nodeId < dimension; ++nodeId)
             route.push_back(nodeId);
         return route;
     }
@@ -109,10 +109,10 @@ namespace {
 
         bool idsAreValid = nodes.size() == static_cast<std::size_t>(dimension);
         if (idsAreValid) {
-            std::vector<bool> seen(static_cast<std::size_t>(dimension) + 1, false);
+            std::vector<bool> seen(static_cast<std::size_t>(dimension), false);
             for (const Node& node : nodes) {
                 const int id = node.getId();
-                if (id < 1 || id > dimension || seen[id]) {
+                if (id < 0 || id >= dimension || seen[id]) {
                     idsAreValid = false;
                     break;
                 }
@@ -125,7 +125,7 @@ namespace {
         if (!idsAreValid) {
             nodes.clear();
             nodes.reserve(static_cast<std::size_t>(std::max(0, dimension)));
-            for (int nodeId = 1; nodeId <= dimension; ++nodeId)
+            for (int nodeId = 0; nodeId < dimension; ++nodeId)
                 nodes.emplace_back(0.0, 0.0, nodeId, "");
         }
 
@@ -135,12 +135,12 @@ namespace {
     std::vector<int> buildInitialRoute(TSPD& instance) {
         const int dimension = instance.getDimension();
         if (dimension <= 0) return {};
-        if (dimension == 1) return {1};
+        if (dimension == 1) return {0};
 
         std::vector<Node> nodes = nodesWithValidIds(instance);
         std::vector<Edge> edges;
-        for (int first = 1; first <= dimension; ++first)
-            for (int second = first + 1; second <= dimension; ++second)
+        for (int first = 0; first < dimension; ++first)
+            for (int second = first + 1; second < dimension; ++second)
                 edges.emplace_back(first, second, instance.getDistance(first, second));
 
         std::vector<int> route;
@@ -150,8 +150,7 @@ namespace {
         }
 
         // The normal path is the MST preorder. The fallback keeps the
-        // heuristic usable for an incomplete graph and respects the
-        // project's 1..N vertex-id convention.
+        // heuristic usable for an incomplete graph and respects zero-based IDs.
         if (!isPermutation(route, dimension))
             route = naturalRoute(dimension);
 
@@ -197,8 +196,8 @@ namespace {
             }
 
             double distance(int firstPosition, int secondPosition) const {
-                // Route positions map directly to vertex ids in 1..N; the
-                // final position is the repeated depot.
+                // Route entries are zero-based vertex IDs; the final position
+                // is the repeated depot.
                 return static_cast<double>(instance.getDistance(
                     route[static_cast<std::size_t>(firstPosition)],
                     route[static_cast<std::size_t>(secondPosition)]));
@@ -261,7 +260,7 @@ namespace {
                 if (dronePosition == -1) {
                     result.truck = prefixRouteDistance[static_cast<std::size_t>(end)] -
                                    prefixRouteDistance[static_cast<std::size_t>(begin)];
-                    result.truck /= instance.getTruckSpeed();
+                    result.truck *= instance.getTruckSpeed();
                     result.duration = result.truck;
                     return result;
                 }
@@ -279,8 +278,8 @@ namespace {
                     prefixRouteDistance[static_cast<std::size_t>(dronePosition + 1)];
                 result.drone = distance(begin, dronePosition) +
                                distance(dronePosition, end);
-                result.truck /= instance.getTruckSpeed();
-                result.drone /= instance.getDroneSpeed();
+                result.truck *= instance.getTruckSpeed();
+                result.drone *= instance.getDroneSpeed();
                 result.duration = std::max(result.truck, result.drone);
                 return result;
             }

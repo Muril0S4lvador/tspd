@@ -3,12 +3,14 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <optional>
 
 using std::string;
 using std::vector;
 
 #include "../edge/edge.hpp"
 #include "../node/node.hpp"
+#include "../solution/literature_solution.hpp"
 
 using tspd::edge::Edge;
 
@@ -23,6 +25,7 @@ namespace tspd::tspd {
             node::Node depot_;
             vector<node::Node> nodes_;
             vector<Edge> edges_;
+            std::optional<solution::LiteratureSolution> literatureSolution_;
 
         public:
             TSPD(string name,
@@ -42,6 +45,9 @@ namespace tspd::tspd {
             int getDistance(int firstNodeId, int secondNodeId) const;
             vector<node::Node> getNodes() const;
             vector<edge::Edge> getEdges() const;
+            bool hasLiteratureSolution() const;
+            const solution::LiteratureSolution& getLiteratureSolution() const;
+            void setLiteratureSolution(solution::LiteratureSolution literatureSolution);
 
             // Sobrecarga de Operador <<
             friend std::ostream& operator<<(std::ostream& os, const TSPD& tspd) {

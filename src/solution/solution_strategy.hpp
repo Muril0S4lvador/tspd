@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <string>
 
 #include "solution.hpp"
 #include "../tspd/tspd.hpp"
@@ -18,6 +19,7 @@ namespace tspd::solution {
             Clock::time_point getStartTime() const { return start_; }
             Clock::time_point getEndTime() const { return end_; }
             std::chrono::duration<double> getDuration() const { return end_ - start_; }
+            virtual std::string getName() const { return "[Default]"; }
 
         private:
             Clock::time_point start_{};

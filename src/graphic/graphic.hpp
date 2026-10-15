@@ -37,21 +37,10 @@ namespace tspd::graphic{
             void _configureView(sf::View& view, const vector<node::Node>& nodes, float& tamanho_view);
             vector<sf::CircleShape> _createVertices(const vector<node::Node>& nodes, float raio) const;
             sf::Vector2f _getNodePosition(int node_id, const vector<node::Node>& nodes) const;
-            void _drawLine(sf::RenderWindow& window,
-                           const sf::Vector2f& inicio,
-                           const sf::Vector2f& fim,
-                           const sf::Color& cor,
-                           float espessura) const;
-            void _drawRoute(sf::RenderWindow& window,
-                            const vector<int>& rota,
-                            const vector<node::Node>& nodes,
-                            const sf::Color& cor,
-                            bool tracejada,
-                            float espessura) const;
-            void _drawLegend(sf::RenderWindow& window,
+            void _drawLegend(sf::RenderTarget& target,
                              const Solution& solution,
                              const sf::Font& font) const;
-            void _drawNodeNames(sf::RenderWindow& window,
+            void _drawNodeNames(sf::RenderTarget& target,
                                 const vector<node::Node>& nodes,
                                 const sf::View& view,
                                 float radius,

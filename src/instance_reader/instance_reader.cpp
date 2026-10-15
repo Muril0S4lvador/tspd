@@ -1,4 +1,5 @@
 #include "instance_reader.hpp"
+#include "../solution_reader/solution_reader.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -12,7 +13,7 @@ namespace tspd::instance_reader {
         double x = 0.0, y = 0.0;
         string name;
         iss >> x >> y >> name;
-        return node::Node(x, y, 1, name);
+        return node::Node(x, y, 0, name);
     }
 
     vector<node::Node> InstanceReader::readNodes(ifstream& file, int& dimension){
@@ -24,7 +25,7 @@ namespace tspd::instance_reader {
             string name;
             std::istringstream iss(line);
             iss >> x >> y >> name;
-            nodes.push_back(node::Node(x, y, i + 1, name));
+            nodes.push_back(node::Node(x, y, i, name));
         }
         return nodes;
     }
@@ -84,6 +85,12 @@ namespace tspd::instance_reader {
             }
         }
 
-        return TSPD("name", "type", dimension, truckSpeed, droneSpeed, depot, nodes, calculateEdges(nodes));
+        TSPD instance("name", "type", dimension, truckSpeed, droneSpeed,
+                      depot, nodes, calculateEdges(nodes));
+        const auto literatureSolution = solution_reader::SolutionReader::readSolution(
+            filePath, instance);
+        if (literatureSolution)
+            instance.setLiteratureSolution(*literatureSolution);
+        return instance;
     }
 }

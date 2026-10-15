@@ -1,5 +1,7 @@
 #include "tspd.hpp"
 
+#include <utility>
+
 namespace tspd::tspd {
     TSPD::TSPD(string name,
                 string type,
@@ -25,6 +27,15 @@ namespace tspd::tspd {
     double TSPD::getDroneSpeed() const {return droneSpeed_;}
     vector<node::Node> TSPD::getNodes() const {return nodes_;}
     vector<edge::Edge> TSPD::getEdges() const {return edges_;}
+    bool TSPD::hasLiteratureSolution() const { return literatureSolution_.has_value(); }
+
+    const solution::LiteratureSolution& TSPD::getLiteratureSolution() const {
+        return literatureSolution_.value();
+    }
+
+    void TSPD::setLiteratureSolution(solution::LiteratureSolution literatureSolution) {
+        literatureSolution_ = std::move(literatureSolution);
+    }
 
     int TSPD::getDistance(int firstNodeId, int secondNodeId) const {
         return Edge::getWeight(edges_, dimension_, firstNodeId, secondNodeId);

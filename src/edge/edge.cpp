@@ -10,8 +10,8 @@ namespace tspd::edge {
         : idA_(std::min(idA, idB)),
           idB_(std::max(idA, idB)),
           weight_(weight) {
-        if (idA <= 0 || idB <= 0 || idA == idB)
-            throw std::invalid_argument("An edge must connect two distinct positive node ids");
+        if (idA < 0 || idB < 0 || idA == idB)
+            throw std::invalid_argument("An edge must connect two distinct nonnegative node ids");
         if (weight < 0)
             throw std::invalid_argument("An edge weight cannot be negative");
     }
@@ -34,14 +34,14 @@ namespace tspd::edge {
     std::size_t Edge::compactIndex(int dimension,
                                    int firstNodeId,
                                    int secondNodeId) {
-        if (dimension <= 0 || firstNodeId < 1 || secondNodeId < 1 ||
-            firstNodeId > dimension || secondNodeId > dimension ||
+        if (dimension <= 0 || firstNodeId < 0 || secondNodeId < 0 ||
+            firstNodeId >= dimension || secondNodeId >= dimension ||
             firstNodeId == secondNodeId) {
             throw std::out_of_range("Invalid node ids for compact distance storage");
         }
 
-        std::size_t first = static_cast<std::size_t>(firstNodeId - 1);
-        std::size_t second = static_cast<std::size_t>(secondNodeId - 1);
+        std::size_t first = static_cast<std::size_t>(firstNodeId);
+        std::size_t second = static_cast<std::size_t>(secondNodeId);
         if (first > second)
             std::swap(first, second);
 
@@ -53,6 +53,10 @@ namespace tspd::edge {
                         int dimension,
                         int firstNodeId,
                         int secondNodeId) {
+        if (dimension <= 0 || firstNodeId < 0 || secondNodeId < 0 ||
+            firstNodeId >= dimension || secondNodeId >= dimension) {
+            throw std::out_of_range("Invalid node ids for compact distance storage");
+        }
         if (firstNodeId == secondNodeId)
             return 0;
 

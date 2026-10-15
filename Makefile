@@ -27,6 +27,7 @@ SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/tspd/*.cpp) \
         $(wildcard $(SRC_DIR)/node/*.cpp) \
         $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \
+        $(wildcard $(SRC_DIR)/solution_reader/*.cpp) \
         $(wildcard $(SRC_DIR)/edge/*.cpp) \
         $(wildcard $(SRC_DIR)/solution/*.cpp) \
         $(wildcard $(SRC_DIR)/kruskal/*.cpp) \

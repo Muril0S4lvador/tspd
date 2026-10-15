@@ -8,8 +8,8 @@ namespace tspd::kruskal{
     }
 
     void Kruskal::_setUnion(vector<int>& set, Node& u, Node& v){
-        int uId = u.getId() - 1;
-        int vId = v.getId() - 1;
+        int uId = u.getId();
+        int vId = v.getId();
         while(set[uId] >= 0 || set[vId] >= 0){
             if(set[uId] >= 0) uId = set[uId];
             if(set[vId] >= 0) vId = set[vId];
@@ -46,7 +46,7 @@ namespace tspd::kruskal{
     }
 
     bool Kruskal::_findUnion(vector<int>& set, int uId, int vId){
-        int u = uId - 1, v = vId - 1;
+        int u = uId, v = vId;
         bool res = false;
 
         while(set[u] >= 0 || set[v] >= 0){

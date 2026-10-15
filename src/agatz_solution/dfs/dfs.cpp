@@ -6,8 +6,8 @@ namespace tspd::dfs{
         vector<vector<int>> adj(nodes.size());
 
         for(const Edge& e : edges){
-            adj[e.getAId() - 1].push_back(e.getBId());
-            adj[e.getBId() - 1].push_back(e.getAId());
+            adj[e.getAId()].push_back(e.getBId());
+            adj[e.getBId()].push_back(e.getAId());
         }
 
         for (auto& neighbors : adj)
@@ -18,12 +18,12 @@ namespace tspd::dfs{
     }
 
     void DFS::_recurseDFS(int nodeId, vector<bool>& visited, vector<int>& path, vector<vector<int>>& adjacencyList){
-        visited[nodeId - 1] = true;
+        visited[nodeId] = true;
 
         path.push_back(nodeId);
 
-        for(int& neighbor : adjacencyList[nodeId - 1])
-            if(!visited[neighbor - 1])
+        for(int& neighbor : adjacencyList[nodeId])
+            if(!visited[neighbor])
                 _recurseDFS(neighbor, visited, path, adjacencyList);
     }
 
@@ -33,7 +33,7 @@ namespace tspd::dfs{
         vector<vector<int>> adjacencyList = _getAdjacencyList(nodes, edges);
 
         vector<int> path = {};
-        _recurseDFS(1, visited, path, adjacencyList);
+        _recurseDFS(0, visited, path, adjacencyList);
         return path;
     }
 }
