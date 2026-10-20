@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <optional>
 using std::vector;
 
 #include <iostream>
@@ -10,6 +11,8 @@ namespace tspd::solution{
         private:
             vector<int> truckNodes_;
             vector<int> droneNodes_;
+            vector<int> tspNodes_;
+            std::optional<double> tspCost_;
             double totalCost_; // Preserva custos fracionarios calculados pelo particionamento.
             double truckCost_; // Preserva custos fracionarios calculados pelo particionamento.
             double droneCost_; // Preserva custos fracionarios calculados pelo particionamento.
@@ -25,6 +28,9 @@ namespace tspd::solution{
 
             vector<int> getTruckNodes() const;
             vector<int> getDroneNodes() const;
+            void setTspRoute(vector<int> nodes, double cost);
+            const vector<int>& getTspNodes() const;
+            const std::optional<double>& getTspCost() const;
             
             
             // Sobrecarga de Operador <<

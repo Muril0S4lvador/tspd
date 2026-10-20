@@ -246,10 +246,34 @@ namespace tspd::solution_reader {
         if (solutionPath.empty())
             return std::nullopt;
 
+        return readSolutionFile(solutionPath.string(), instance,
+                                solutionPath.filename() == candidates[1].filename());
+    }
+
+    std::optional<::tspd::solution::LiteratureSolution> SolutionReader::readTspSolution(
+        const std::string& instancePath,
+        const ::tspd::tspd::TSPD& instance) {
+        const std::filesystem::path instanceFile(instancePath);
+        const auto path = instanceFile.parent_path() / "solutions" /
+            (instanceFile.stem().string() + "-tsp" + instanceFile.extension().string());
+        std::error_code error;
+        const bool exists = std::filesystem::exists(path, error);
+        if (error)
+            fail(path, 1, "cannot inspect file: " + error.message());
+        if (!exists)
+            return std::nullopt;
+        return readSolutionFile(path.string(), instance, true);
+    }
+
+    ::tspd::solution::LiteratureSolution SolutionReader::readSolutionFile(
+        const std::string& path,
+        const ::tspd::tspd::TSPD& instance,
+        bool isTsp) {
+        const std::filesystem::path solutionPath(path);
         std::vector<BlockComment> comments;
         const std::vector<SourceLine> sourceLines = removeComments(solutionPath, comments);
-        const std::optional<double> totalCost = readTotalCost(solutionPath, comments);
-        if (!totalCost && solutionPath.filename() != candidates[1].filename())
+        std::optional<double> totalCost = readTotalCost(solutionPath, comments);
+        if (!totalCost && !isTsp)
             fail(solutionPath, 1, "missing Total cost block comment");
 
         std::vector<SourceLine> dataLines;
@@ -355,13 +379,21 @@ namespace tspd::solution_reader {
 
         std::vector<::tspd::edge::Edge> truckEdges;
         std::vector<::tspd::edge::Edge> droneEdges;
+        std::vector<int> tspRoute{depotId};
         for (const Operation& operation : operations) {
+            if (isTsp && operation.fly != -1)
+                fail(solutionPath, operation.line, "TSP solution cannot contain drone deliveries");
             std::vector<int> truckPath;
             truckPath.reserve(operation.internalNodes.size() + 2);
             truckPath.push_back(operation.start);
             truckPath.insert(truckPath.end(), operation.internalNodes.begin(),
                              operation.internalNodes.end());
             truckPath.push_back(operation.end);
+            if (isTsp) {
+                tspRoute.insert(tspRoute.end(), operation.internalNodes.begin(),
+                                operation.internalNodes.end());
+                tspRoute.push_back(operation.end);
+            }
             for (std::size_t index = 1; index < truckPath.size(); ++index) {
                 appendEdge(truckEdges, truckPath[index - 1], truckPath[index], instance,
                            solutionPath, operation.line, "truck");
@@ -375,6 +407,13 @@ namespace tspd::solution_reader {
             }
         }
 
+        if (isTsp) {
+            try {
+                totalCost = instance.calculateTspCost(tspRoute);
+            } catch (const std::exception& error) {
+                fail(solutionPath, operations.back().line, error.what());
+            }
+        }
         return ::tspd::solution::LiteratureSolution(
             std::move(truckEdges), std::move(droneEdges), totalCost);
     }

@@ -357,6 +357,11 @@ namespace tspd::graphic{
                 costRows.push_back("Custo Literature: indisponível");
             }
         }
+        if (solution.getTspCost())
+            costRows.push_back("TSP encontrado: " + std::to_string(*solution.getTspCost()));
+        if (tspd_.hasLiteratureTspSolution())
+            costRows.push_back("TSP de referencia: " +
+                std::to_string(tspd_.getLiteratureTspSolution().getTotalCost()));
         constexpr float costPanelWidth = 310.f;
         const float costPanelHeight = 18.f + static_cast<float>(costRows.size()) * 26.f;
         const float costPanelX = static_cast<float>(target.getSize().x) - costPanelWidth - margin;

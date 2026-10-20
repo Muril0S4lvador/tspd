@@ -91,6 +91,9 @@ namespace tspd::instance_reader {
             filePath, instance);
         if (literatureSolution)
             instance.setLiteratureSolution(*literatureSolution);
+        const auto tspSolution = solution_reader::SolutionReader::readTspSolution(filePath, instance);
+        if (tspSolution)
+            instance.setLiteratureTspSolution(*tspSolution);
         return instance;
     }
 }

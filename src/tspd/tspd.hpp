@@ -26,6 +26,7 @@ namespace tspd::tspd {
             vector<node::Node> nodes_;
             vector<Edge> edges_;
             std::optional<solution::LiteratureSolution> literatureSolution_;
+            std::optional<solution::LiteratureSolution> literatureTspSolution_;
 
         public:
             TSPD(string name,
@@ -48,6 +49,10 @@ namespace tspd::tspd {
             bool hasLiteratureSolution() const;
             const solution::LiteratureSolution& getLiteratureSolution() const;
             void setLiteratureSolution(solution::LiteratureSolution literatureSolution);
+            bool hasLiteratureTspSolution() const;
+            const solution::LiteratureSolution& getLiteratureTspSolution() const;
+            void setLiteratureTspSolution(solution::LiteratureSolution literatureSolution);
+            double calculateTspCost(const vector<int>& route) const;
 
             // Sobrecarga de Operador <<
             friend std::ostream& operator<<(std::ostream& os, const TSPD& tspd) {

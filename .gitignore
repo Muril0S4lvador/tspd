@@ -1,4 +1,6 @@
 data/descompressed/
 build/
+results/
 .vscode/
 *.exe
+tests/

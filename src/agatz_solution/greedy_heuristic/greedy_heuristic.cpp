@@ -732,7 +732,13 @@ Solution GreedyHeuristic::_greedyHeuristic(
     TSPD& instance,
     const std::vector<int>& initialRoute) {
     const std::vector<int> improvedRoute = iterativeImprovement(instance, initialRoute);
-    return partitionRoute(instance, improvedRoute);
+    auto result = partitionRoute(instance, improvedRoute);
+    if (improvedRoute.empty())
+        return result;
+    auto closedRoute = improvedRoute;
+    closedRoute.push_back(closedRoute.front());
+    result.setTspRoute(closedRoute, instance.calculateTspCost(closedRoute));
+    return result;
 }
 
 Solution GreedyHeuristic::Optimize(TSPD& instance) {

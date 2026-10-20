@@ -193,6 +193,8 @@ Solution ExactPartitioning::Optimize(TSPD& instance) { // Mantem a estrutura nec
     const auto edges = instance.getEdges(); // Reutiliza as mesmas arestas em todos os vizinhos.
     const auto route = iterativeImprovement(instance, initialRoute, edges); // Melhora a ordem com VND avaliado pelo particionamento exato do TSP-D.
     evaluateRoute(instance, route, edges); // Restaura P e M da rota aceita, pois o ultimo vizinho testado pode ter sido rejeitado.
-    return getSolution(route, edges); // Substitui a funcao livre com assinatura incompatível.
+    auto result = getSolution(route, edges); // Preserva o resultado TSP-D antes de anexar a base TSP.
+    result.setTspRoute(route, instance.calculateTspCost(route)); // Guarda a rota completa e seu custo sem entregas do drone.
+    return result; // Retorna os dois custos sem alterar o objetivo da busca local.
 } 
 } 
