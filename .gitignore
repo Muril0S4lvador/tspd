@@ -3,4 +3,9 @@ build/
 results/
 .vscode/
 *.exe
-tests/
+tests/*
+!tests/test_experiment_runner.py
+!tests/tsp_reference_test.cpp
+!tests/tsp_solver_test.cpp
+!tests/hgvns_test.cpp
+!tests/hga_tac_test.cpp

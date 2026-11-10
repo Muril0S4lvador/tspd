@@ -22,5 +22,6 @@ private: // Mantem a estrutura necessaria para a etapa corrigida.
 public: // Mantem a estrutura necessaria para a etapa corrigida.
     std::string getName() const override { return "Exact Partitioning"; } // Mantem a estrutura necessaria para a etapa corrigida.
     solution::Solution Optimize(::tspd::tspd::TSPD& instance) override; // Mantem a estrutura necessaria para a etapa corrigida.
+    solution::Solution Optimize(::tspd::tspd::TSPD& instance, const solution::Solution& tspSolution) override; // Recebe a rota inicial comum ja calculada.
 }; // Encerra o bloco desta etapa.
 } // Encerra o bloco desta etapa.

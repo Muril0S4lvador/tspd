@@ -24,6 +24,9 @@ INC_FLAGS := -Isrc -Isrc/edge -Isrc/instance_reader -Isrc/node -Isrc/tspd -Isrc/
 # ==============================================================================
 # Busca todos os arquivos .cpp nas subpastas conhecidas de src/
 SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
+        $(wildcard $(SRC_DIR)/TSP/*.cpp) \
+        $(wildcard $(SRC_DIR)/hgvns/*.cpp) \
+        $(wildcard $(SRC_DIR)/hga_tac/*.cpp) \
         $(wildcard $(SRC_DIR)/tspd/*.cpp) \
         $(wildcard $(SRC_DIR)/node/*.cpp) \
         $(wildcard $(SRC_DIR)/instance_reader/*.cpp) \

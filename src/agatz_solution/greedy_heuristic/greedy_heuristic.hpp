@@ -25,5 +25,7 @@ namespace tspd::greedyHeuristic {
 
             solution::Solution Optimize(
                 ::tspd::tspd::TSPD& instance) override;
+            solution::Solution Optimize(
+                ::tspd::tspd::TSPD& instance, const solution::Solution& tspSolution) override;
     };
 }

@@ -1,6 +1,4 @@
 #include "exactPartitioning.hpp" // Sincroniza as definicoes com o header.
-#include "../dfs/dfs.hpp" // Mantem a ordem inicial por DFS.
-#include "../kruskal/kruskal.hpp" // Mantem a MST inicial.
 #include <algorithm> // Disponibiliza max e reverse.
 #include <cmath> // Valida fatores e custos finitos.
 #include <limits> // Representa estados inalcancaveis.
@@ -113,26 +111,6 @@ Solution ExactPartitioning::getSolution(const std::vector<int>& route, const std
     return Solution{truckNodes, droneNodes, V_[N], truckCost, droneCost}; // Usa o estado final e preserva os custos.
 } 
 
-std::vector<int> buildInitialRoute(TSPD& instance) { // Mantem a estrutura necessaria para a etapa corrigida.
-    auto nodes = instance.getNodes(); // Mantem a estrutura necessaria para a etapa corrigida.
-    auto edges = instance.getEdges(); // Mantem a estrutura necessaria para a etapa corrigida.
-    if (nodes.empty()) { // Evita chamar DFS sem deposito.
-        throw std::invalid_argument("Instance must contain a depot"); // Rejeita a instancia vazia.
-    } 
-    if (nodes.size() == 1) { // Trata a ausencia de clientes.
-        return {0, 0}; // Retorna a rota trivial fechada.
-    } 
-    auto mst = ::tspd::kruskal::Kruskal::kruskal(nodes, edges); // Mantem a estrutura necessaria para a etapa corrigida.
-    auto route = ::tspd::dfs::DFS::getDFS(nodes, mst); // Mantem a estrutura necessaria para a etapa corrigida.
-    if (route.size() != nodes.size()) { // Verifica a cobertura de todos os clientes.
-        throw std::invalid_argument("Initial route does not cover all nodes"); // Rejeita uma rota incompleta.
-    } 
-    route.push_back(route.front()); // Fecha a rota sem alterar a ordem dos clientes.
-    return route; // Deixa a busca 2-opt na classe que pode acessar o particionamento exato.
-} 
-
-
-
 double ExactPartitioning::evaluateRoute(TSPD& instance, const std::vector<int>& route, const std::vector<Edge>& edges) { // Reutiliza a mesma avaliacao para a rota inicial e os vizinhos.
     initializingParameters(instance, route); // Limpa custos e predecessores da rota avaliada anteriormente.
     BestImprovementByNode(route, edges); // Recalcula as operacoes para esta ordem de clientes.
@@ -183,13 +161,17 @@ std::vector<int> ExactPartitioning::iterativeImprovement(TSPD& instance, const s
     return route; // Devolve a ordem melhorada com os depositos preservados.
 } // Encerra a busca local.
 
-Solution ExactPartitioning::Optimize(TSPD& instance) { // Mantem a estrutura necessaria para a etapa corrigida.
+Solution ExactPartitioning::Optimize(TSPD&) { // Impede construir silenciosamente outro TSP dentro do metodo.
+    throw std::logic_error("Exact Partitioning requer um TSP previamente calculado. Use Solve(instance, tspSolution)."); // Explicita a dependencia ausente.
+}
+
+Solution ExactPartitioning::Optimize(TSPD& instance, const Solution& tspSolution) { // Usa a solucao TSP compartilhada.
     if (!std::isfinite(instance.getTruckSpeed()) || instance.getTruckSpeed() <= 0.0 || // Mantem a estrutura necessaria para a etapa corrigida.
         !std::isfinite(instance.getDroneSpeed()) || instance.getDroneSpeed() <= 0.0) // Mantem a estrutura necessaria para a etapa corrigida.
         throw std::invalid_argument("Truck and drone speeds must be positive and finite"); // Mantem a estrutura necessaria para a etapa corrigida.
+    const auto& initialRoute = requireTspRoute(instance, tspSolution); // Valida fechamento, cobertura e custo antes da busca.
     if(instance.getDimension() > 20)
         throw std::length_error("Exact Partitioning must be used in instances shorther than 20 clients");
-    const auto initialRoute = buildInitialRoute(instance); // Constroi a ordem inicial antes da busca local.
     const auto edges = instance.getEdges(); // Reutiliza as mesmas arestas em todos os vizinhos.
     const auto route = iterativeImprovement(instance, initialRoute, edges); // Melhora a ordem com VND avaliado pelo particionamento exato do TSP-D.
     evaluateRoute(instance, route, edges); // Restaura P e M da rota aceita, pois o ultimo vizinho testado pode ter sido rejeitado.

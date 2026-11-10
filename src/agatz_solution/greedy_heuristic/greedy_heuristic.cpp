@@ -1,8 +1,5 @@
 #include "greedy_heuristic.hpp"
 
-#include "../dfs/dfs.hpp"
-#include "../kruskal/kruskal.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -14,9 +11,6 @@
 namespace tspd::greedyHeuristic {
 namespace {
 
-    using Edge = ::tspd::edge::Edge;
-    using Kruskal = ::tspd::kruskal::Kruskal;
-    using Node = ::tspd::node::Node;
     using Solution = ::tspd::solution::Solution;
     using TSPD = ::tspd::tspd::TSPD;
 
@@ -73,83 +67,6 @@ namespace {
             return isBetterCandidate(right, left);
         }
     };
-
-    bool isPermutation(const std::vector<int>& route, int dimension) {
-        if (dimension <= 0 || route.size() != static_cast<std::size_t>(dimension))
-            return false;
-
-        std::vector<bool> seen(static_cast<std::size_t>(dimension), false);
-        for (const int nodeId : route) {
-            if (nodeId < 0 || nodeId >= dimension || seen[nodeId])
-                return false;
-            seen[nodeId] = true;
-        }
-        return true;
-    }
-
-    std::vector<int> naturalRoute(int dimension) {
-        std::vector<int> route;
-        if (dimension <= 0) return route;
-
-        route.reserve(static_cast<std::size_t>(dimension));
-        for (int nodeId = 0; nodeId < dimension; ++nodeId)
-            route.push_back(nodeId);
-        return route;
-    }
-
-    std::vector<Node> nodesWithValidIds(const TSPD& instance) {
-        const int dimension = instance.getDimension();
-        std::vector<Node> nodes = instance.getNodes();
-
-        bool idsAreValid = nodes.size() == static_cast<std::size_t>(dimension);
-        if (idsAreValid) {
-            std::vector<bool> seen(static_cast<std::size_t>(dimension), false);
-            for (const Node& node : nodes) {
-                const int id = node.getId();
-                if (id < 0 || id >= dimension || seen[id]) {
-                    idsAreValid = false;
-                    break;
-                }
-                seen[id] = true;
-            }
-        }
-
-        // EXPLICIT TSPLIB instances may not have coordinates. The MST only
-        // needs the vertex ids in that case; distances still come from TSPD.
-        if (!idsAreValid) {
-            nodes.clear();
-            nodes.reserve(static_cast<std::size_t>(std::max(0, dimension)));
-            for (int nodeId = 0; nodeId < dimension; ++nodeId)
-                nodes.emplace_back(0.0, 0.0, nodeId, "");
-        }
-
-        return nodes;
-    }
-
-    std::vector<int> buildInitialRoute(TSPD& instance) {
-        const int dimension = instance.getDimension();
-        if (dimension <= 0) return {};
-        if (dimension == 1) return {0};
-
-        std::vector<Node> nodes = nodesWithValidIds(instance);
-        std::vector<Edge> edges;
-        for (int first = 0; first < dimension; ++first)
-            for (int second = first + 1; second < dimension; ++second)
-                edges.emplace_back(first, second, instance.getDistance(first, second));
-
-        std::vector<int> route;
-        if (!edges.empty()) {
-            std::vector<Edge> mst = Kruskal::kruskal(nodes, edges);
-            route = ::tspd::dfs::DFS::getDFS(nodes, mst);
-        }
-
-        // The normal path is the MST preorder. The fallback keeps the
-        // heuristic usable for an incomplete graph and respects zero-based IDs.
-        if (!isPermutation(route, dimension))
-            route = naturalRoute(dimension);
-
-        return route;
-    }
 
     class PartitionState {
         public:
@@ -741,11 +658,16 @@ Solution GreedyHeuristic::_greedyHeuristic(
     return result;
 }
 
-Solution GreedyHeuristic::Optimize(TSPD& instance) {
+Solution GreedyHeuristic::Optimize(TSPD&) {
+    throw std::logic_error("Greedy requer um TSP previamente calculado. Use Solve(instance, tspSolution).");
+}
+
+Solution GreedyHeuristic::Optimize(TSPD& instance, const Solution& tspSolution) {
     if (!std::isfinite(instance.getTruckSpeed()) || instance.getTruckSpeed() <= 0.0 ||
         !std::isfinite(instance.getDroneSpeed()) || instance.getDroneSpeed() <= 0.0)
         throw std::invalid_argument("Truck and drone speeds must be positive and finite");
-    const std::vector<int> initialRoute = buildInitialRoute(instance);
+    std::vector<int> initialRoute = requireTspRoute(instance, tspSolution);
+    initialRoute.pop_back(); // O particionador Greedy acrescenta o deposito final.
     return _greedyHeuristic(instance, initialRoute);
 }
 
