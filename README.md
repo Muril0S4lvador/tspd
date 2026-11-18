@@ -4,7 +4,7 @@
 
 - Compilador C++ com suporte ao padrão C++17 (como `g++`)
 - `make`
-- Bibliotecas de desenvolvimento do SFML (`graphics`, `window` e `system`)
+- SFML 3 (`graphics`, `window` e `system`), somente no Windows
 - `bash`, `tar` e `gzip` para preparar as instâncias
 
 ## Preparar as instâncias
@@ -26,6 +26,7 @@ make
 ```
 
 O comando gera o executável `main.exe` no Windows e `main` em outros sistemas.
+No Linux e no macOS, o programa é compilado sem interface gráfica e dispensa o SFML.
 
 ## Executar
 
@@ -68,11 +69,11 @@ pelo leitor atual.
 # Somente instancias de singlecenter, com Greedy
 .\main.exe data/singlecenter/ --algorithms greedy
 
-# Um arquivo, todos os algoritmos, sem abrir janelas
-.\main.exe data/singlecenter/singlecenter-1-n5.txt --no-graphics
+# Um arquivo, todos os algoritmos, com visualização no Windows
+.\main.exe data/singlecenter/singlecenter-1-n5.txt --graphics
 
 # Um arquivo, somente ExactPartitioning, sem graficos
-.\main.exe --no-graphics --algorithms exact-partitioning data/singlecenter/singlecenter-1-n5.txt
+.\main.exe --algorithms exact-partitioning data/singlecenter/singlecenter-1-n5.txt
 
 # Selecao explicita de varios algoritmos (no PowerShell, coloque a lista entre aspas)
 .\main.exe data/ --algorithms "greedy,exact-partitioning"
@@ -86,13 +87,17 @@ virgulas, sem espacos; selecoes repetidas sao executadas uma unica vez, na ordem
 do cadastro. Opcoes podem aparecer antes ou depois do caminho. Identificadores
 desconhecidos e listas vazias geram erro antes de iniciar a rodada.
 
-Um arquivo individual abre graficos por padrao, a menos que seja informado
-`--no-graphics`. Diretorios nunca abrem graficos. Cada algoritmo recebe uma copia
+A visualização fica desativada por padrão. No Windows, passe `--graphics` com
+um arquivo individual para abrir as janelas. Diretórios são processados em lote.
+Cada algoritmo recebe uma copia
 da instancia original e um novo objeto do algoritmo; as execucoes sao sequenciais.
 O cadastro central fica em `src/experiment_runner.cpp` e usa `SolutionStrategy::Solve`.
 
 O `TSPSolver`, em `src/TSP/`, implementa `SolutionStrategy` e constroi a rota TSP
-com Kruskal e DFS. O executor o chama uma unica vez por instancia e compartilha
+com Kruskal e DFS, seguida sempre por uma execucao do VND (2-opt, relocate e swap)
+ate atingir um otimo local. As vizinhancas seguem o Agatz, mas minimizam o custo
+do TSP puro; o VND do ExactPartitioning continua avaliando o TSP-D separadamente.
+O executor o chama uma unica vez por instancia e compartilha
 a mesma `Solution` inicial com Greedy e ExactPartitioning. A selecao `tsp` registra
 essa solucao no CSV sem recalcula-la; sem `--algorithms`, ela tambem e registrada.
 Mesmo ao selecionar apenas uma heuristica, o TSP necessario e calculado uma vez.
@@ -142,7 +147,7 @@ e gestao de populacoes viaveis/inviaveis. A variante plus acrescenta o escape de
 otimos locais. Ambos usam o TSP compartilhado e a opcao `--seed` (padrao 0).
 
 ```powershell
-.\main.exe caminho\instancia.txt --no-graphics --algorithms "hga-tac,hga-tac-plus" --seed 42
+.\main.exe caminho\instancia.txt --algorithms "hga-tac,hga-tac-plus" --seed 42
 ```
 
 Esta e uma integracao ao modelo TSPD atual, com autonomia ilimitada pela CLI,

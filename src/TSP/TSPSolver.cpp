@@ -5,8 +5,53 @@
 
 #include <stdexcept>
 #include <utility>
+#include <algorithm>
+#include <cmath>
 
 namespace tspd::tsp {
+    std::vector<int> TSPSolver::improveRoute(const ::tspd::tspd::TSPD& instance,
+                                            std::vector<int> route) {
+        double currentCost = instance.calculateTspCost(route);
+        const int lastCustomer = static_cast<int>(route.size()) - 2;
+        int neighborhood = 0;
+        // Mesmo VND do Agatz: best improvement em 2-opt, relocate e swap.
+        // Aqui o objetivo e o TSP puro, sem particionamento ou entregas do drone.
+        while (neighborhood < 3) {
+            auto bestRoute = route;
+            double bestCost = currentCost;
+            const double tolerance = 1e-9 * std::max(1.0, std::abs(currentCost));
+            for (int first = 1; first <= lastCustomer; ++first) {
+                const int firstDestination = neighborhood == 1 ? 1 : first + 1;
+                for (int last = firstDestination; last <= lastCustomer; ++last) {
+                    if (first == last) continue;
+                    auto candidate = route;
+                    if (neighborhood == 0) {
+                        std::reverse(candidate.begin() + first, candidate.begin() + last + 1);
+                    } else if (neighborhood == 1) {
+                        const int customer = candidate[first];
+                        candidate.erase(candidate.begin() + first);
+                        candidate.insert(candidate.begin() + last, customer);
+                    } else {
+                        std::swap(candidate[first], candidate[last]);
+                    }
+                    const double candidateCost = instance.calculateTspCost(candidate);
+                    if (candidateCost + tolerance < bestCost) {
+                        bestCost = candidateCost;
+                        bestRoute = std::move(candidate);
+                    }
+                }
+            }
+            if (bestCost + tolerance < currentCost) {
+                route = std::move(bestRoute);
+                currentCost = bestCost;
+                neighborhood = 0;
+            } else {
+                ++neighborhood;
+            }
+        }
+        return route;
+    }
+
     solution::Solution TSPSolver::Optimize(::tspd::tspd::TSPD& instance) {
         auto nodes = instance.getNodes();
         const int dimension = instance.getDimension();
@@ -37,6 +82,7 @@ namespace tspd::tsp {
             route = ::tspd::dfs::DFS::getDFS(nodes, mst);
         }
         route.push_back(0);
+        route = improveRoute(instance, std::move(route));
 
         // Valida fechamento, cobertura e custo antes de disponibilizar o TSP.
         const double cost = instance.calculateTspCost(route);

@@ -3,13 +3,15 @@
 # ==============================================================================
 CXX      := g++
 CXXFLAGS := -std=c++17 -Wall -Wextra -O2
-LDFLAGS = -lsfml-graphics -lsfml-window -lsfml-system
 
 SRC_DIR   := src
 BUILD_DIR := build
 
 ifeq ($(OS),Windows_NT)
     TARGET := main.exe
+    GRAPHICS_FLAGS := -DTSPD_ENABLE_GRAPHICS
+    GRAPHICS_LIBS := -lsfml-graphics -lsfml-window -lsfml-system
+    GRAPHICS_SRCS := $(wildcard $(SRC_DIR)/graphic/*.cpp)
 else
     TARGET := main
 endif
@@ -35,7 +37,7 @@ SRCS := $(wildcard $(SRC_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/solution/*.cpp) \
         $(wildcard $(SRC_DIR)/kruskal/*.cpp) \
         $(wildcard $(SRC_DIR)/agatz_solution/**/*.cpp) \
-        $(wildcard $(SRC_DIR)/graphic/*.cpp)
+        $(GRAPHICS_SRCS)
 
 # Mapeia cada .cpp para o seu respectivo .o dentro de build/
 OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
@@ -52,7 +54,7 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	@echo "=========================================="
 	@echo "Ligando o executavel final: $@"
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+	$(CXX) $(OBJS) -o $@ $(LDFLAGS) $(GRAPHICS_LIBS)
 	@echo "Compilacao concluida com sucesso!"
 	@echo "=========================================="
 
@@ -60,7 +62,7 @@ $(TARGET): $(OBJS)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "Compilando: $<"
-	$(CXX) $(CXXFLAGS) $(INC_FLAGS) -MMD -MP -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INC_FLAGS) $(GRAPHICS_FLAGS) -MMD -MP -c $< -o $@
 
 # Regra de limpeza
 clean:

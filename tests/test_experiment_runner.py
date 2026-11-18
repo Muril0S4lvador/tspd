@@ -95,7 +95,7 @@ class RunnerTests(unittest.TestCase):
         self.assertTrue(all(row["algorithm"] == "greedy" for row in rows))
 
     def test_single_file_no_graphics(self):
-        result, rows = self.run_solver("data/singlecenter/a,1.txt", "--no-graphics")
+        result, rows = self.run_solver("data/singlecenter/a,1.txt")
         self.assertIn("Graficos: nao", result.stdout)
         self.assertEqual(len(rows), len(ALGORITHMS))
         self.assertEqual({row["name"] for row in rows}, {"a,1.txt"})
@@ -323,7 +323,7 @@ class RunnerTests(unittest.TestCase):
     def test_help(self):
         result, rows = self.run_solver("--help")
         self.assertIn("--algorithms", result.stdout)
-        self.assertIn("--no-graphics", result.stdout)
+        self.assertIn("--graphics", result.stdout)
         self.assertEqual(rows, [])
 
     def test_hga_tac_variants_seed_and_shared_tsp(self):

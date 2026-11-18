@@ -64,6 +64,22 @@ int main() {
               initial.getDroneCost() == 0 && initial.getDroneNodes().empty(),
               "Standalone TSP is not represented as a truck-only Solution");
 
+        // O preorder 0-1-2-3-0 cruza o retangulo; o VND deve obter seu perimetro.
+        std::vector<Node> rectangleNodes{
+            {0, 0, 0, "depot"}, {1, 0, 1, "a"}, {0, 2, 2, "b"}, {1, 2, 3, "c"}};
+        Instance rectangle("rectangle", "TSP-D", 4, 1, 0.5,
+            rectangleNodes.front(), rectangleNodes,
+            tspd::instance_reader::InstanceReader::calculateEdges(rectangleNodes));
+        const auto improved = tspSolver->Solve(rectangle);
+        check(std::abs(rectangle.calculateTspCost({0, 1, 2, 3, 0}) -
+                       (2 + 2 * std::sqrt(5.0))) < 1e-12,
+              "Unexpected rectangle preorder cost");
+        check(improved.getTspCost() && std::abs(*improved.getTspCost() - 6.0) < 1e-12 &&
+              improved.getTotalCost() == *improved.getTspCost() &&
+              improved.getTruckNodes() == improved.getTspNodes() &&
+              improved.getDroneNodes().empty(),
+              "TSP solver did not refine the preorder into the truck-only perimeter");
+
         std::vector<std::unique_ptr<Strategy>> heuristics;
         heuristics.push_back(std::make_unique<tspd::greedyHeuristic::GreedyHeuristic>());
         heuristics.push_back(std::make_unique<tspd::exactPartitioning::ExactPartitioning>());

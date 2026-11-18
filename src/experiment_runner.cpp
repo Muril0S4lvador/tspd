@@ -23,7 +23,9 @@
 
 #include "agatz_solution/exact_partiotioning_algorithm/exactPartitioning.hpp"
 #include "agatz_solution/greedy_heuristic/greedy_heuristic.hpp"
+#ifdef TSPD_ENABLE_GRAPHICS
 #include "graphic/graphic.hpp"
+#endif
 #include "instance_reader/instance_reader.hpp"
 #include "TSP/TSPSolver.hpp"
 #include "hgvns/HGVNS.hpp"
@@ -60,7 +62,8 @@ const std::vector<Algorithm>& registry() {
 
 void usage(const char* program) {
     std::cout << "Uso: " << program
-              << " <arquivo.txt|diretorio> [--no-graphics] [--algorithms id,id] [--seed numero]\n"
+              << " <arquivo.txt|diretorio> [--graphics] [--algorithms id,id] [--seed numero]\n"
+              << "--graphics: abre a visualizacao de um arquivo individual no Windows.\n"
               << "Diretorios: busca recursiva, sem graficos; solutions/ e ignorado.\n"
               << "Sem --algorithms: executa todos os algoritmos cadastrados.\n"
               << "TSP: calculado uma vez por instancia e compartilhado com as heuristicas.\n"
@@ -72,7 +75,7 @@ void usage(const char* program) {
 
 struct Options {
     fs::path input;
-    bool noGraphics = false;
+    bool graphics = false;
     std::uint32_t seed = 0;
     std::set<std::string> selected;
 };
@@ -81,8 +84,10 @@ Options parse(int argc, char* argv[]) {
     Options options;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
-        if (argument == "--no-graphics") {
-            options.noGraphics = true;
+        if (argument == "--graphics") {
+            options.graphics = true;
+        } else if (argument == "--no-graphics") {
+            options.graphics = false;
         } else if (argument == "--seed") {
             if (i + 1 == argc) throw std::invalid_argument("--seed exige um inteiro sem sinal de 32 bits.");
             const std::string value = argv[++i];
@@ -249,7 +254,11 @@ int run(int argc, char* argv[]) {
         std::vector<Algorithm> algorithms;
         for (const auto& a : registry())
             if (options.selected.empty() || options.selected.count(a.id)) algorithms.push_back(a);
-        const bool graphics = fs::is_regular_file(options.input) && !options.noGraphics;
+#ifdef TSPD_ENABLE_GRAPHICS
+        const bool graphics = options.graphics && fs::is_regular_file(options.input);
+#else
+        const bool graphics = false;
+#endif
         const auto outputPath = reportPath();
         std::ofstream report(outputPath);
         report.exceptions(std::ios::failbit | std::ios::badbit);
@@ -344,10 +353,12 @@ int run(int argc, char* argv[]) {
                             throw std::runtime_error("Algoritmo retornou custo nao finito.");
                         cost = solution.getTotalCost();
                         tspCost = solution.getTspCost();
+#ifdef TSPD_ENABLE_GRAPHICS
                         if (graphics) {
                             graphic::Graphic view(instance);
                             view.drawSolution(solution);
                         }
+#endif
                     } catch (const std::exception& exception) {
                         if (!cost) solveSeconds = elapsed(solveStart);
                         error = exception.what();
