@@ -48,6 +48,18 @@ Por exemplo, se a instância estiver disponível localmente:
 .\main.exe data\singlecenter\singlecenter-1-n5.txt
 ```
 
+### Executar em segundo plano
+
+No Linux, macOS ou WSL, informe a pasta de instâncias na raiz do projeto:
+
+```bash
+make background dir=data/singlecenter
+```
+
+O comando compila o programa se necessário e mostra o PID e o caminho do log.
+Depois disso, você pode fechar o terminal. Os CSVs e o log ficam em `results/`.
+Para acompanhar a saída, use `tail -f` com o caminho do log exibido.
+
 ### Rodadas de teste
 
 Um arquivo seleciona somente aquela instancia. Um diretorio seleciona recursivamente

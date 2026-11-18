@@ -50,6 +50,24 @@ DEPS := $(OBJS:.o=.d)
 # ==============================================================================
 all: $(TARGET)
 
+background: export dir := $(dir)
+background:
+ifeq ($(OS),Windows_NT)
+	@echo "Use make background no Linux, macOS ou WSL." >&2
+	@exit 1
+else
+	@if [ -z "$$dir" ] || [ ! -d "$$dir" ]; then \
+		echo 'Informe uma pasta de instancias existente em dir.' >&2; \
+		echo 'Exemplo: make background dir=data/singlecenter' >&2; \
+		exit 1; \
+	fi
+	@$(MAKE) all
+	@mkdir -p results
+	@log=$$(mktemp results/segundo-plano.XXXXXX) || exit 1; \
+		nohup "./$(TARGET)" "$$dir" </dev/null >"$$log" 2>&1 & \
+		printf 'Rodada iniciada em segundo plano (PID %s). Log: %s\n' "$$!" "$$log"
+endif
+
 # Regra para ligar os arquivos objeto e gerar o executável final
 $(TARGET): $(OBJS)
 	@echo "=========================================="
@@ -71,4 +89,4 @@ clean:
 
 -include $(DEPS)
 
-.PHONY: all clean
+.PHONY: all clean background
