@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXECUTABLE = Path(sys.argv.pop(1)).resolve() if len(sys.argv) > 1 else ROOT / "main.exe"
 ALGORITHMS = {"tsp", "greedy", "exact-partitioning", "hgvns", "hga-tac", "hga-tac-plus",
               "hgvns-pd-waiting-rvnd"}
+STOCHASTIC = {"hgvns", "hgvns-pd-waiting-rvnd", "hga-tac", "hga-tac-plus"}
 
 
 def instance(size=5):
@@ -44,7 +45,7 @@ class RunnerTests(unittest.TestCase):
         (data / "README.md").write_text("readme")
         (data / "archive.zip").write_bytes(b"not an instance")
 
-    def run_solver(self, *args, code=0):
+    def run_solver(self, *args, code=0, reports=1):
         before = set((self.work / "results").glob("rodada-*.csv"))
         result = subprocess.run(
             [str(EXECUTABLE), *args], cwd=self.work, capture_output=True,
@@ -53,20 +54,25 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, code, result.stdout + result.stderr)
         after = set((self.work / "results").glob("rodada-*.csv"))
         created = after - before
-        self.assertLessEqual(len(created), 1)
+        self.assertLessEqual(len(created), reports)
+        self.report_paths = sorted(created)
         rows = []
         self.analysis_rows = []
         if created:
-            report = created.pop()
-            analysis = report.with_name(report.name.replace("rodada-", "analise-", 1))
-            self.assertTrue(analysis.exists())
-            self.analysis_rows = list(csv.DictReader(io.StringIO(analysis.read_text(encoding="utf-8"))))
-            reader = csv.DictReader(io.StringIO(report.read_text(encoding="utf-8")))
-            self.assertEqual(reader.fieldnames, [
+            self.assertEqual(len(created), reports)
+            fields = [
                 "name", "algorithm", "tspd_cost", "tsp_cost", "literature_tspd_cost",
                 "literature_tsp_cost", "solve_seconds", "status", "error",
-            ])
-            rows = list(reader)
+            ]
+            if "--seeds" in args:
+                fields += ["seed", "instance_path"]
+            for report in self.report_paths:
+                analysis = report.with_name(report.name.replace("rodada-", "analise-", 1))
+                self.assertTrue(analysis.exists())
+                self.analysis_rows.extend(csv.DictReader(io.StringIO(analysis.read_text(encoding="utf-8"))))
+                reader = csv.DictReader(io.StringIO(report.read_text(encoding="utf-8")))
+                self.assertEqual(reader.fieldnames, fields)
+                rows.extend(reader)
             for row in rows:
                 self.assertGreaterEqual(float(row["solve_seconds"]), 0)
         return result, rows
@@ -206,6 +212,21 @@ class RunnerTests(unittest.TestCase):
             ["data", "--algorithms", "greedy,,exact-partitioning"], ["data", "data/uniform"],
             ["data", "--seed"], ["data", "--seed", "-1"], ["data", "--seed", "abc"],
             ["data", "--seed", "4294967296"], ["data", "--seed", ""],
+            ["data", "--seeds"], ["data", "--seeds", ""],
+            ["data", "--seeds", "-1"], ["data", "--seeds", "abc"],
+            ["data", "--seeds", "4294967296"],
+            ["data", "--seeds", "9999999999999999999999999999999"],
+            ["data", "--seeds", ":9"], ["data", "--seeds", "1:"],
+            ["data", "--seeds", "9:1"], ["data", "--seeds", "1:2:3"],
+            ["data", "--seeds", "1,"], ["data", "--seeds", ",1"],
+            ["data", "--seeds", "1,,2"], ["data", "--seeds", "1, 2"],
+            ["data", "--seeds", "1:1001"],
+            ["data", "--seeds", "0:4294967295"],
+            ["data", "--seeds", "1:9", "--seed", "0"],
+            ["data", "--seed", "0", "--seeds", "1:9"],
+            ["data", "--seeds", "1", "--seeds", "2"],
+            *[["data", "--seeds", "1:9", "--algorithms", algorithm]
+              for algorithm in ["tsp", "greedy", "exact-partitioning", "hgvns,greedy"]],
         ]
         for args in invalid:
             with self.subTest(args=args):
@@ -324,7 +345,101 @@ class RunnerTests(unittest.TestCase):
         result, rows = self.run_solver("--help")
         self.assertIn("--algorithms", result.stdout)
         self.assertIn("--graphics", result.stdout)
+        self.assertIn("--seeds", result.stdout)
         self.assertEqual(rows, [])
+
+    def test_default_seed_is_zero_and_keeps_all_algorithms(self):
+        result, default = self.run_solver("data/uniform/c.txt")
+        self.assertEqual({r["algorithm"] for r in default}, ALGORITHMS)
+        self.assertEqual({r["seed"] for r in self.analysis_rows}, {"0"})
+        self.assertIn("Semente HGVNS: 0", result.stdout)
+        self.assertIn("Semente HGA-TAC: 0", result.stdout)
+        self.assertNotIn("-seed-", self.report_paths[0].name)
+        _, explicit = self.run_solver("data/uniform/c.txt", "--seed", "0")
+        self.assertEqual([(r["algorithm"], r["tspd_cost"], r["tsp_cost"]) for r in default],
+                         [(r["algorithm"], r["tspd_cost"], r["tsp_cost"]) for r in explicit])
+
+    def test_seed_range_only_repeats_stochastic_methods_and_shares_tsp(self):
+        result, rows = self.run_solver("data/", "--seeds", "1:9", "--graphics", reports=9)
+        self.assertEqual(len(rows), 3 * 9 * len(STOCHASTIC))
+        self.assertEqual({r["algorithm"] for r in rows}, STOCHASTIC)
+        self.assertEqual({r["seed"] for r in rows}, {str(seed) for seed in range(1, 10)})
+        self.assertEqual(len({(r["instance_path"], r["algorithm"], r["seed"]) for r in rows}), len(rows))
+        self.assertTrue(all(r["status"] == "success" for r in rows))
+        self.assertTrue(all(Path(r["instance_path"]).is_absolute() for r in rows))
+        self.assertEqual(result.stdout.count("Optimization TSP Solver Initialized."), 3)
+        self.assertEqual(result.stdout.count("Optimization HGVNS Initialized."), 27)
+        self.assertIn("Graficos: nao", result.stdout)
+        self.assertIn("Sementes (9): 1 2 3 4 5 6 7 8 9", result.stdout)
+        self.assertEqual(len(self.analysis_rows), 27)
+        for name in {r["name"] for r in rows}:
+            wide = [r for r in self.analysis_rows if r["name"] == name]
+            self.assertEqual({r["seed"] for r in wide}, {str(seed) for seed in range(1, 10)})
+            self.assertEqual(len({r["tsp_result"] for r in wide}), 1)
+            self.assertEqual(len({r["tsp_seconds"] for r in wide}), 1)
+            for r in wide:
+                for method in ("greedy", "exact-partitioning"):
+                    self.assertEqual(r[method + "_status"], "not_selected")
+                    self.assertEqual(r[method + "_result"], "")
+                for method in STOCHASTIC:
+                    detail = next(d for d in rows if d["name"] == name and d["seed"] == r["seed"]
+                                  and d["algorithm"] == method)
+                    self.assertEqual(r[method + "_result"], detail["tspd_cost"])
+                    self.assertAlmostEqual(float(r[method + "_total_seconds"]),
+                                           float(r["tsp_seconds"]) + float(detail["solve_seconds"]))
+        for path in self.report_paths:
+            per_file = list(csv.DictReader(io.StringIO(path.read_text(encoding="utf-8"))))
+            self.assertEqual(len({r["seed"] for r in per_file}), 1)
+            self.assertTrue(path.stem.endswith("-seed-" + per_file[0]["seed"]))
+
+    def test_seed_list_deduplicates_preserves_order_and_accepts_subset(self):
+        result, rows = self.run_solver("data/uniform/c.txt", "--seeds", "3,1:2,3,1",
+                                       "--algorithms", "hgvns", reports=3)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual({r["seed"] for r in rows}, {"1", "2", "3"})
+        self.assertEqual({r["algorithm"] for r in rows}, {"hgvns"})
+        self.assertIn("Sementes (3): 3 1 2", result.stdout)
+        self.assertEqual(result.stdout.count("Optimization TSP Solver Initialized."), 1)
+        self.assertTrue(all(r["hga-tac_status"] == "not_selected" for r in self.analysis_rows))
+
+    def test_seed_batch_matches_standalone_including_zero(self):
+        path = self.work / "data/uniform/c.txt"
+        path.write_text(instance(8), encoding="utf-8")
+        _, batch = self.run_solver(str(path), "--seeds", "0:2", reports=3)
+        for seed in range(3):
+            _, single = self.run_solver(str(path), "--seed", str(seed), "--algorithms",
+                                        ",".join(sorted(STOCHASTIC)))
+            expected = {r["algorithm"]: (r["tspd_cost"], r["tsp_cost"]) for r in single}
+            actual = {r["algorithm"]: (r["tspd_cost"], r["tsp_cost"])
+                      for r in batch if r["seed"] == str(seed)}
+            self.assertEqual(actual, expected)
+
+    def test_seed_batch_accepts_uint32_upper_boundary(self):
+        _, rows = self.run_solver("data/uniform/c.txt", "--seeds", "4294967294:4294967295",
+                                   "--algorithms", "hgvns", reports=2)
+        self.assertEqual({r["seed"] for r in rows}, {"4294967294", "4294967295"})
+
+    def test_seed_batch_reports_never_overwrite(self):
+        self.run_solver("data/uniform/c.txt", "--seeds", "1:2", "--algorithms", "hgvns", reports=2)
+        before = {p: p.read_bytes() for p in (self.work / "results").glob("*.csv")}
+        self.run_solver("data/uniform/c.txt", "--seeds", "1:2", "--algorithms", "hgvns", reports=2)
+        self.assertEqual(len(list((self.work / "results").glob("*.csv"))), 8)
+        for path, contents in before.items():
+            self.assertEqual(path.read_bytes(), contents)
+
+    def test_seed_batch_read_failure_continues_for_all_seeds_and_instances(self):
+        (self.work / "data/singlecenter/0-broken.txt").write_text(
+            "/*The speed of the Truck*/\n1\n/*Number of Nodes*/\ninvalid\n"
+        )
+        result, rows = self.run_solver("data/", "--seeds", "1:2", code=1, reports=2)
+        self.assertEqual(len(rows), 4 * 2 * len(STOCHASTIC))
+        self.assertEqual(len(self.analysis_rows), 8)
+        self.assertIn("Concluidas: 3 | Com falhas: 1", result.stdout)
+        for seed in ("1", "2"):
+            failed = [r for r in rows if r["seed"] == seed and r["status"] == "error"]
+            self.assertEqual(len(failed), len(STOCHASTIC))
+            self.assertTrue(all(r["tspd_cost"] == "" and r["error"] for r in failed))
+            self.assertIn(f"Semente {seed}: sucesso=12 | falhas=4", result.stdout)
 
     def test_hga_tac_variants_seed_and_shared_tsp(self):
         for algorithm in ("hga-tac", "hga-tac-plus"):

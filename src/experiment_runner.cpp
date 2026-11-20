@@ -41,33 +41,36 @@ using Solution = ::tspd::solution::Solution;
 
 struct Algorithm {
     std::string id;
+    bool stochastic;
     std::function<std::unique_ptr<Strategy>(std::uint32_t)> create;
 };
 
 const std::vector<Algorithm>& registry() {
     static const std::vector<Algorithm> algorithms{
-        {"tsp", [](std::uint32_t) { return std::make_unique<tsp::TSPSolver>(); }},
-        {"greedy", [](std::uint32_t) { return std::make_unique<greedyHeuristic::GreedyHeuristic>(); }},
-        {"exact-partitioning", [](std::uint32_t) { return std::make_unique<exactPartitioning::ExactPartitioning>(); }},
-        {"hgvns", [](std::uint32_t seed) { return std::make_unique<hgvns::HGVNS>(seed); }},
-        {"hgvns-pd-waiting-rvnd", [](std::uint32_t seed) {
+        {"tsp", false, [](std::uint32_t) { return std::make_unique<tsp::TSPSolver>(); }},
+        {"greedy", false, [](std::uint32_t) { return std::make_unique<greedyHeuristic::GreedyHeuristic>(); }},
+        {"exact-partitioning", false, [](std::uint32_t) { return std::make_unique<exactPartitioning::ExactPartitioning>(); }},
+        {"hgvns", true, [](std::uint32_t seed) { return std::make_unique<hgvns::HGVNS>(seed); }},
+        {"hgvns-pd-waiting-rvnd", true, [](std::uint32_t seed) {
             return std::make_unique<hgvns::HGVNS>(seed, hgvns::BlockSelection::Waiting,
                 hgvns::BlockParameters{}, hgvns::PDPlacement::AfterRVND);
         }},
-        {"hga-tac", [](std::uint32_t seed) { return std::make_unique<hga_tac::HGATAC>(seed); }},
-        {"hga-tac-plus", [](std::uint32_t seed) { return std::make_unique<hga_tac::HGATAC>(seed, true); }}
+        {"hga-tac", true, [](std::uint32_t seed) { return std::make_unique<hga_tac::HGATAC>(seed); }},
+        {"hga-tac-plus", true, [](std::uint32_t seed) { return std::make_unique<hga_tac::HGATAC>(seed, true); }}
     };
     return algorithms;
 }
 
 void usage(const char* program) {
     std::cout << "Uso: " << program
-              << " <arquivo.txt|diretorio> [--graphics] [--algorithms id,id] [--seed numero]\n"
+              << " <arquivo.txt|diretorio> [--graphics] [--algorithms id,id] [--seed numero | --seeds inicio:fim]\n"
               << "--graphics: abre a visualizacao de um arquivo individual no Windows.\n"
               << "Diretorios: busca recursiva, sem graficos; solutions/ e ignorado.\n"
-              << "Sem --algorithms: executa todos os algoritmos cadastrados.\n"
+              << "Sem --algorithms: executa todos; com --seeds, somente os estocasticos.\n"
               << "TSP: calculado uma vez por instancia e compartilhado com as heuristicas.\n"
               << "--seed: semente de HGVNS e HGA-TAC, inteiro sem sinal de 32 bits; padrao 0.\n"
+              << "--seeds: intervalo inclusivo (1:9) ou lista (1,3,7), ate 1000 sementes distintas.\n"
+              << "O lote --seeds e sequencial, sem graficos, e gera dois CSVs por semente.\n"
               << "Algoritmos:";
     for (const auto& algorithm : registry()) std::cout << ' ' << algorithm.id;
     std::cout << "\nResultados: results/rodada-<data-hora>.csv e results/analise-<data-hora>.csv\n";
@@ -76,12 +79,54 @@ void usage(const char* program) {
 struct Options {
     fs::path input;
     bool graphics = false;
-    std::uint32_t seed = 0;
+    std::vector<std::uint32_t> seeds{0};
+    bool seedBatch = false;
     std::set<std::string> selected;
 };
 
+std::uint32_t parseSeed(const std::string& value, const std::string& option) {
+    if (value.empty() || !std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c); }))
+        throw std::invalid_argument(option + " exige um inteiro sem sinal de 32 bits.");
+    std::uint64_t number = 0;
+    for (const char digit : value) {
+        number = number * 10 + static_cast<unsigned>(digit - '0');
+        if (number > std::numeric_limits<std::uint32_t>::max())
+            throw std::invalid_argument(option + " excede o limite de 32 bits.");
+    }
+    return static_cast<std::uint32_t>(number);
+}
+
+std::vector<std::uint32_t> parseSeeds(const std::string& list) {
+    constexpr std::size_t maxSeeds = 1000;
+    std::vector<std::uint32_t> seeds;
+    std::set<std::uint32_t> seen;
+    std::size_t begin = 0;
+    do {
+        const auto end = list.find(',', begin);
+        const auto item = list.substr(begin, end == std::string::npos ? end : end - begin);
+        const auto colon = item.find(':');
+        const auto first = parseSeed(item.substr(0, colon), "--seeds");
+        const auto last = colon == std::string::npos ? first : parseSeed(item.substr(colon + 1), "--seeds");
+        if (first > last) throw std::invalid_argument("--seeds exige inicio <= fim; exemplo: --seeds 1:9.");
+        if (static_cast<std::uint64_t>(last) - first + 1 > maxSeeds)
+            throw std::invalid_argument("--seeds aceita ate 1000 sementes distintas por lote.");
+        // O contador de 64 bits permite incluir 4294967295 sem transbordar.
+        for (std::uint64_t seed = first; seed <= last; ++seed) {
+            if (seen.insert(static_cast<std::uint32_t>(seed)).second) {
+                if (seeds.size() == maxSeeds)
+                    throw std::invalid_argument("--seeds aceita ate 1000 sementes distintas por lote.");
+                seeds.push_back(static_cast<std::uint32_t>(seed));
+            }
+        }
+        if (end == std::string::npos) break;
+        begin = end + 1;
+    } while (true);
+    return seeds;
+}
+
 Options parse(int argc, char* argv[]) {
     Options options;
+    bool singleSeed = false;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--graphics") {
@@ -90,13 +135,14 @@ Options parse(int argc, char* argv[]) {
             options.graphics = false;
         } else if (argument == "--seed") {
             if (i + 1 == argc) throw std::invalid_argument("--seed exige um inteiro sem sinal de 32 bits.");
-            const std::string value = argv[++i];
-            if (value.empty() || !std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c); }))
-                throw std::invalid_argument("--seed exige um inteiro sem sinal de 32 bits.");
-            const auto seed = std::stoull(value);
-            if (seed > std::numeric_limits<std::uint32_t>::max())
-                throw std::invalid_argument("--seed excede o limite de 32 bits.");
-            options.seed = static_cast<std::uint32_t>(seed);
+            options.seeds = {parseSeed(argv[++i], "--seed")};
+            singleSeed = true;
+        } else if (argument == "--seeds") {
+            if (i + 1 == argc)
+                throw std::invalid_argument("--seeds exige um intervalo (1:9) ou lista (1,3,7).");
+            if (options.seedBatch) throw std::invalid_argument("Informe --seeds uma unica vez.");
+            options.seeds = parseSeeds(argv[++i]);
+            options.seedBatch = true;
         } else if (argument == "--algorithms") {
             if (i + 1 == argc || std::string(argv[i + 1]).rfind("--", 0) == 0)
                 throw std::invalid_argument("--algorithms exige uma lista de identificadores.");
@@ -120,6 +166,14 @@ Options parse(int argc, char* argv[]) {
         }
     }
     if (options.input.empty()) throw std::invalid_argument("Informe um arquivo ou diretorio.");
+    if (singleSeed && options.seedBatch)
+        throw std::invalid_argument("Use --seed ou --seeds, nunca as duas opcoes juntas.");
+    if (options.seedBatch) {
+        for (const auto& algorithm : registry())
+            if (options.selected.count(algorithm.id) && !algorithm.stochastic)
+                throw std::invalid_argument("Algoritmo '" + algorithm.id +
+                    "' e deterministico. --seeds aceita somente metodos estocasticos.");
+    }
     return options;
 }
 
@@ -186,17 +240,6 @@ std::string csv(const std::string& value) {
     return quoted + '"';
 }
 
-fs::path reportPath() {
-    fs::create_directories("results");
-    const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::ostringstream name;
-    name << "rodada-" << std::put_time(std::localtime(&now), "%Y%m%d-%H%M%S");
-    auto path = fs::path("results") / (name.str() + ".csv");
-    for (unsigned suffix = 1; fs::exists(path); ++suffix)
-        path = fs::path("results") / (name.str() + "-" + std::to_string(suffix) + ".csv");
-    return path;
-}
-
 void validate(const Instance& instance) {
     const auto nodes = instance.getNodes();
     if (instance.getDimension() < 1 || nodes.size() != static_cast<std::size_t>(instance.getDimension()))
@@ -243,6 +286,55 @@ void analysisHeader(std::ostream& output) {
                << algorithm.id << "_total_seconds," << algorithm.id << "_status," << algorithm.id << "_error";
     output << '\n';
 }
+
+struct ReportFiles {
+    std::uint32_t seed;
+    fs::path detailPath, analysisPath;
+    std::size_t successes = 0, failures = 0;
+};
+
+std::ofstream openOutput(const fs::path& path, std::ios::openmode mode = std::ios::out) {
+    std::ofstream output;
+    output.exceptions(std::ios::failbit | std::ios::badbit);
+    output.open(path, mode);
+    output.imbue(std::locale::classic());
+    output << std::setprecision(17);
+    return output;
+}
+
+std::vector<ReportFiles> createReports(const Options& options) {
+    fs::create_directories("results");
+    const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::ostringstream timestamp;
+    timestamp << std::put_time(std::localtime(&now), "%Y%m%d-%H%M%S");
+    std::vector<ReportFiles> reports;
+    for (unsigned suffix = 0;; ++suffix) {
+        reports.clear();
+        bool collision = false;
+        for (const auto seed : options.seeds) {
+            auto name = timestamp.str();
+            if (suffix) name += "-" + std::to_string(suffix);
+            if (options.seedBatch) name += "-seed-" + std::to_string(seed);
+            const auto detail = fs::path("results") / ("rodada-" + name + ".csv");
+            const auto analysis = fs::path("results") / ("analise-" + name + ".csv");
+            if (fs::exists(detail) || fs::exists(analysis)) { collision = true; break; }
+            reports.push_back({seed, detail, analysis});
+        }
+        if (!collision) break;
+    }
+    for (const auto& files : reports) {
+        auto report = openOutput(files.detailPath);
+        report << "name,algorithm,tspd_cost,tsp_cost,literature_tspd_cost,literature_tsp_cost,solve_seconds,status,error";
+        // Preserva o formato antigo para --seed e para a execucao padrao.
+        if (options.seedBatch) report << ",seed,instance_path";
+        report << '\n';
+        report.flush();
+        auto analysis = openOutput(files.analysisPath);
+        analysisHeader(analysis);
+        analysis.flush();
+    }
+    return reports;
+}
 } // namespace
 
 int run(int argc, char* argv[]) {
@@ -253,34 +345,33 @@ int run(int argc, char* argv[]) {
         if (found.files.empty()) throw std::invalid_argument("Nenhuma instancia encontrada no caminho informado.");
         std::vector<Algorithm> algorithms;
         for (const auto& a : registry())
-            if (options.selected.empty() || options.selected.count(a.id)) algorithms.push_back(a);
+            if ((options.selected.empty() || options.selected.count(a.id)) &&
+                (!options.seedBatch || a.stochastic)) algorithms.push_back(a);
 #ifdef TSPD_ENABLE_GRAPHICS
-        const bool graphics = options.graphics && fs::is_regular_file(options.input);
+        const bool graphics = options.graphics && !options.seedBatch && fs::is_regular_file(options.input);
 #else
         const bool graphics = false;
 #endif
-        const auto outputPath = reportPath();
-        std::ofstream report(outputPath);
-        report.exceptions(std::ios::failbit | std::ios::badbit);
-        report.imbue(std::locale::classic());
-        report << std::setprecision(17)
-               << "name,algorithm,tspd_cost,tsp_cost,literature_tspd_cost,literature_tsp_cost,solve_seconds,status,error\n";
-        const auto analysisPath = outputPath.parent_path() / ("analise-" + outputPath.filename().string().substr(7));
-        std::ofstream analysis(analysisPath);
-        analysis.exceptions(std::ios::failbit | std::ios::badbit);
-        analysis.imbue(std::locale::classic());
-        analysis << std::setprecision(17);
-        analysisHeader(analysis);
+        auto reports = createReports(options);
         std::size_t successes = 0, failures = 0, completed = 0, failedInstances = 0;
         const auto start = Clock::now();
         std::cout << "Instancias: " << found.files.size() << " | Algoritmos: " << algorithms.size()
                   << " | Graficos: " << (graphics ? "sim" : "nao")
-                  << "\nCSV: " << fs::absolute(outputPath).string() << '\n';
-        if (options.selected.empty() || std::any_of(options.selected.begin(), options.selected.end(),
-                [](const std::string& id) { return id.rfind("hgvns", 0) == 0; }))
-            std::cout << "Semente HGVNS: " << options.seed << '\n';
-        if (options.selected.empty() || options.selected.count("hga-tac") || options.selected.count("hga-tac-plus"))
-            std::cout << "Semente HGA-TAC: " << options.seed << '\n';
+                  << '\n';
+        if (options.seedBatch) {
+            std::cout << "Sementes (" << options.seeds.size() << "):";
+            for (const auto seed : options.seeds) std::cout << ' ' << seed;
+            std::cout << '\n';
+        } else {
+            if (options.selected.empty() || std::any_of(options.selected.begin(), options.selected.end(),
+                    [](const std::string& id) { return id.rfind("hgvns", 0) == 0; }))
+                std::cout << "Semente HGVNS: " << options.seeds.front() << '\n';
+            if (options.selected.empty() || options.selected.count("hga-tac") || options.selected.count("hga-tac-plus"))
+                std::cout << "Semente HGA-TAC: " << options.seeds.front() << '\n';
+        }
+        for (const auto& files : reports)
+            std::cout << "CSV: " << fs::absolute(files.detailPath).string()
+                      << "\nCSV analise: " << fs::absolute(files.analysisPath).string() << '\n';
         for (std::size_t index = 0; index < found.files.size(); ++index) {
             const auto& path = found.files[index];
             std::cout << '[' << index + 1 << '/' << found.files.size() << "] " << path.string() << std::endl;
@@ -319,102 +410,113 @@ int run(int argc, char* argv[]) {
                 }
             }
             bool instanceFailed = false;
-            std::vector<Measurement> measurements(registry().size());
-            for (const auto& algorithm : algorithms) {
-                std::optional<double> cost;
-                std::optional<double> tspCost;
-                double solveSeconds = 0;
-                std::string error = readError.empty() ? tspError : readError;
-                if (!tspError.empty()) solveSeconds = tspSeconds;
-                if (error.empty()) {
-                    const auto solveStart = Clock::now();
-                    try {
-                        auto instance = *source;
-                        if (!tspSolution)
-                            throw std::logic_error("TSPSolver nao disponibilizou uma solucao TSP inicial.");
-                        auto solution = [&]() {
-                            if (algorithm.id == "tsp") {
-                                // A linha TSP reutiliza a solucao e o tempo ja calculados.
-                                solveSeconds = tspSeconds;
-                                return *tspSolution;
-                            }
-                            auto solver = algorithm.create(options.seed);
-                            auto result = solver->Solve(instance, *tspSolution);
-                            solveSeconds = solver->getDuration().count();
-                            if (const auto* hgvns = dynamic_cast<const hgvns::HGVNS*>(solver.get())) {
-                                const auto& stats = hgvns->statistics();
-                                if (stats.pdCalls) std::cout << "    PD: chamadas=" << stats.pdCalls
-                                    << ", ordens=" << stats.ordersEvaluated
-                                    << ", blocos melhorados=" << stats.blocksAccepted << '\n';
-                            }
-                            return result;
-                        }();
-                        if (!std::isfinite(solution.getTotalCost()))
-                            throw std::runtime_error("Algoritmo retornou custo nao finito.");
-                        cost = solution.getTotalCost();
-                        tspCost = solution.getTspCost();
+            for (auto& files : reports) {
+                const auto seed = files.seed;
+                if (options.seedBatch) std::cout << "  Semente: " << seed << std::endl;
+                // Abre somente o par em uso; o numero de sementes nao acumula descritores.
+                auto report = openOutput(files.detailPath, std::ios::app);
+                auto analysis = openOutput(files.analysisPath, std::ios::app);
+                std::vector<Measurement> measurements(registry().size());
+                for (const auto& algorithm : algorithms) {
+                    std::optional<double> cost;
+                    std::optional<double> tspCost;
+                    double solveSeconds = 0;
+                    std::string error = readError.empty() ? tspError : readError;
+                    if (!tspError.empty()) solveSeconds = tspSeconds;
+                    if (error.empty()) {
+                        const auto solveStart = Clock::now();
+                        try {
+                            auto instance = *source;
+                            if (!tspSolution)
+                                throw std::logic_error("TSPSolver nao disponibilizou uma solucao TSP inicial.");
+                            auto solution = [&]() {
+                                if (algorithm.id == "tsp") {
+                                    // A linha TSP reutiliza a solucao e o tempo ja calculados.
+                                    solveSeconds = tspSeconds;
+                                    return *tspSolution;
+                                }
+                                auto solver = algorithm.create(seed);
+                                auto result = solver->Solve(instance, *tspSolution);
+                                solveSeconds = solver->getDuration().count();
+                                if (const auto* hgvns = dynamic_cast<const hgvns::HGVNS*>(solver.get())) {
+                                    const auto& stats = hgvns->statistics();
+                                    if (stats.pdCalls) std::cout << "    PD: chamadas=" << stats.pdCalls
+                                        << ", ordens=" << stats.ordersEvaluated
+                                        << ", blocos melhorados=" << stats.blocksAccepted << '\n';
+                                }
+                                return result;
+                            }();
+                            if (!std::isfinite(solution.getTotalCost()))
+                                throw std::runtime_error("Algoritmo retornou custo nao finito.");
+                            cost = solution.getTotalCost();
+                            tspCost = solution.getTspCost();
 #ifdef TSPD_ENABLE_GRAPHICS
-                        if (graphics) {
-                            graphic::Graphic view(instance);
-                            view.drawSolution(solution);
-                        }
+                            if (graphics) {
+                                graphic::Graphic view(instance);
+                                view.drawSolution(solution);
+                            }
 #endif
-                    } catch (const std::exception& exception) {
-                        if (!cost) solveSeconds = elapsed(solveStart);
-                        error = exception.what();
+                        } catch (const std::exception& exception) {
+                            if (!cost) solveSeconds = elapsed(solveStart);
+                            error = exception.what();
+                        }
                     }
+                    if (error.empty()) {
+                        ++successes;
+                        ++files.successes;
+                        std::cout << "  " << algorithm.id << ": custo=" << *cost
+                                  << ", tempo=" << solveSeconds << "s\n";
+                    } else {
+                        ++failures;
+                        ++files.failures;
+                        instanceFailed = true;
+                        std::cerr << "  " << algorithm.id << ": " << error << '\n';
+                    }
+                    report << csv(path.filename().string()) << ',' << csv(algorithm.id) << ',';
+                    writeCost(report, cost);
+                    report << ',';
+                    writeCost(report, tspCost);
+                    report << ',';
+                    writeCost(report, literatureTspdCost);
+                    report << ',';
+                    writeCost(report, literatureTspCost);
+                    report << ',' << solveSeconds << ','
+                           << (error.empty() ? "success" : "error") << ',' << csv(error);
+                    if (options.seedBatch) report << ',' << seed << ',' << csv(fs::absolute(path).string());
+                    report << '\n';
+                    report.flush();
+                    const auto slot = std::find_if(registry().begin(), registry().end(),
+                        [&](const Algorithm& a) { return a.id == algorithm.id; }) - registry().begin();
+                    measurements[slot] = {cost, readError.empty() && tspError.empty() ? std::optional<double>(solveSeconds) : std::nullopt,
+                                          error.empty() ? "success" : "error", error};
                 }
-                if (error.empty()) {
-                    ++successes;
-                    std::cout << "  " << algorithm.id << ": custo=" << *cost
-                              << ", tempo=" << solveSeconds << "s\n";
-                } else {
-                    ++failures;
-                    instanceFailed = true;
-                    std::cerr << "  " << algorithm.id << ": " << error << '\n';
+                analysis << csv(path.filename().string()) << ',' << csv(fs::absolute(path).string()) << ',';
+                if (source) analysis << source->getDimension();
+                analysis << ',' << seed << ',';
+                writeCost(analysis, optimum);
+                analysis << ',' << csv(optimum ? fs::absolute(optimumPath).string() : "") << ',';
+                writeCost(analysis, literatureTspdCost);
+                analysis << ',';
+                writeCost(analysis, literatureTspCost);
+                analysis << ',';
+                if (tspSolution) analysis << tspSolution->getTotalCost();
+                analysis << ',';
+                if (readError.empty()) analysis << tspSeconds;
+                const auto initialError = readError.empty() ? tspError : readError;
+                analysis << ',' << (initialError.empty() ? "success" : "error") << ',' << csv(initialError);
+                for (std::size_t i = 0; i < registry().size(); ++i) if (registry()[i].id != "tsp") {
+                    const auto& measurement = measurements[i];
+                    analysis << ',';
+                    writeCost(analysis, measurement.cost);
+                    analysis << ',';
+                    writeCost(analysis, measurement.seconds);
+                    analysis << ',';
+                    if (measurement.seconds && tspSolution) analysis << tspSeconds + *measurement.seconds;
+                    analysis << ',' << measurement.status << ',' << csv(measurement.error);
                 }
-                report << csv(path.filename().string()) << ',' << csv(algorithm.id) << ',';
-                writeCost(report, cost);
-                report << ',';
-                writeCost(report, tspCost);
-                report << ',';
-                writeCost(report, literatureTspdCost);
-                report << ',';
-                writeCost(report, literatureTspCost);
-                report << ',' << solveSeconds << ','
-                       << (error.empty() ? "success" : "error") << ',' << csv(error) << '\n';
-                report.flush();
-                const auto slot = std::find_if(registry().begin(), registry().end(),
-                    [&](const Algorithm& a) { return a.id == algorithm.id; }) - registry().begin();
-                measurements[slot] = {cost, readError.empty() && tspError.empty() ? std::optional<double>(solveSeconds) : std::nullopt,
-                                      error.empty() ? "success" : "error", error};
+                analysis << '\n';
+                analysis.flush();
             }
-            analysis << csv(path.filename().string()) << ',' << csv(fs::absolute(path).string()) << ',';
-            if (source) analysis << source->getDimension();
-            analysis << ',' << options.seed << ',';
-            writeCost(analysis, optimum);
-            analysis << ',' << csv(optimum ? fs::absolute(optimumPath).string() : "") << ',';
-            writeCost(analysis, literatureTspdCost);
-            analysis << ',';
-            writeCost(analysis, literatureTspCost);
-            analysis << ',';
-            if (tspSolution) analysis << tspSolution->getTotalCost();
-            analysis << ',';
-            if (readError.empty()) analysis << tspSeconds;
-            const auto initialError = readError.empty() ? tspError : readError;
-            analysis << ',' << (initialError.empty() ? "success" : "error") << ',' << csv(initialError);
-            for (std::size_t i = 0; i < registry().size(); ++i) if (registry()[i].id != "tsp") {
-                const auto& measurement = measurements[i];
-                analysis << ',';
-                writeCost(analysis, measurement.cost);
-                analysis << ',';
-                writeCost(analysis, measurement.seconds);
-                analysis << ',';
-                if (measurement.seconds && tspSolution) analysis << tspSeconds + *measurement.seconds;
-                analysis << ',' << measurement.status << ',' << csv(measurement.error);
-            }
-            analysis << '\n';
-            analysis.flush();
             if (instanceFailed) ++failedInstances;
             else ++completed;
         }
@@ -422,9 +524,14 @@ int run(int argc, char* argv[]) {
                   << "Instancias selecionadas: " << found.files.size()
                   << " | Concluidas: " << completed << " | Com falhas: " << failedInstances << '\n'
                   << "Execucoes com sucesso: " << successes << " | Com falhas: " << failures
-                  << " | Erros de descoberta: " << found.errors
-                  << "\nCSV: " << fs::absolute(outputPath).string() << '\n';
-        std::cout << "CSV analise: " << fs::absolute(analysisPath).string() << '\n';
+                  << " | Erros de descoberta: " << found.errors << '\n';
+        for (const auto& files : reports) {
+            if (options.seedBatch)
+                std::cout << "Semente " << files.seed << ": sucesso=" << files.successes
+                          << " | falhas=" << files.failures << '\n';
+            std::cout << "CSV: " << fs::absolute(files.detailPath).string()
+                      << "\nCSV analise: " << fs::absolute(files.analysisPath).string() << '\n';
+        }
         return failures || found.errors ? 1 : 0;
     } catch (const std::exception& error) {
         std::cerr << "Erro: " << error.what() << '\n';

@@ -60,6 +60,70 @@ O comando compila o programa se necessário e mostra o PID e o caminho do log.
 Depois disso, você pode fechar o terminal. Os CSVs e o log ficam em `results/`.
 Para acompanhar a saída, use `tail -f` com o caminho do log exibido.
 
+### Executar varias sementes
+
+Sem `--seed` e sem `--seeds`, o comportamento permanece o mesmo: uma execucao
+com semente **0**, incluindo todos os algoritmos quando `--algorithms` nao e informado.
+`--seed 42` continua selecionando uma unica semente, como antes.
+
+Para complementar a rodada da semente 0 com as sementes de 1 a 9, inclusive:
+
+```bash
+./main caminho/instancias --seeds 1:9
+```
+
+No Windows:
+
+```powershell
+.\main.exe caminho\instancias --seeds 1:9
+```
+
+Em segundo plano no Linux, macOS ou WSL:
+
+```bash
+make background dir=caminho/instancias seeds=1:9
+```
+
+Sem `seeds=...`, `make background dir=...` tambem continua usando a semente 0.
+Os logs permanecem em `results/` depois do termino.
+
+O modo `--seeds` executa somente os quatro metodos estocasticos: `hgvns`,
+`hgvns-pd-waiting-rvnd`, `hga-tac` e `hga-tac-plus`. Para selecionar um subconjunto:
+
+```bash
+./main caminho/instancias --seeds 1:9 --algorithms hgvns,hgvns-pd-waiting-rvnd
+```
+
+Tambem sao aceitas listas, como `--seeds 1,3,7`, ou combinacoes, como
+`--seeds 1:3,7,9`. Sementes repetidas sao executadas uma unica vez, na ordem
+informada. Os valores devem estar entre 0 e 4294967295, com ate 1000 sementes
+distintas por lote. Intervalos invertidos, valores invalidos, selecao de algoritmos
+deterministicos no lote e uso simultaneo de `--seed` e `--seeds` geram erro antes
+de iniciar a rodada.
+
+A execucao e sequencial e sem graficos, mesmo com `--graphics`. Para cada
+instancia, o programa le o arquivo e calcula o TSP de Kruskal/DFS/VND uma unica
+vez, compartilhando a mesma rota com todos os metodos e sementes. Cada combinacao
+instancia/metodo/semente recebe uma copia da instancia e um novo algoritmo,
+reinicializado com a semente correspondente.
+
+Cada semente gera seu proprio par de arquivos, com o mesmo identificador de lote:
+
+- `results/rodada-<data-hora>-seed-1.csv`
+- `results/analise-<data-hora>-seed-1.csv`
+
+Assim, `--seeds 1:9` gera 18 CSVs. Arquivos existentes, incluindo a rodada da
+semente 0, nao sao sobrescritos. O detalhamento do lote acrescenta `seed` e
+`instance_path` ao final das colunas tradicionais. O CSV de analise mantem seu
+formato, com uma linha por instancia em cada arquivo de semente. Guloso e
+particionamento exato ficam como `not_selected`; o TSP compartilhado e registrado
+em todos os arquivos de analise, com o mesmo custo e tempo medido.
+
+O detalhamento e salvo apos cada metodo; a analise, apos cada instancia/semente.
+Falhas sao registradas e as demais execucoes continuam. O resumo do log informa
+sucessos e falhas por semente. O notebook de analise atual continua destinado a
+uma rodada unica; a consolidacao estatistica das dez sementes exige adaptacao.
+
 ### Rodadas de teste
 
 Um arquivo seleciona somente aquela instancia. Um diretorio seleciona recursivamente
@@ -94,7 +158,7 @@ pelo leitor atual.
 .\main.exe --help
 ```
 
-Sem `--algorithms`, todos os algoritmos cadastrados sao executados. A lista usa
+Sem `--algorithms` e sem `--seeds`, todos os algoritmos cadastrados sao executados. A lista usa
 virgulas, sem espacos; selecoes repetidas sao executadas uma unica vez, na ordem
 do cadastro. Opcoes podem aparecer antes ou depois do caminho. Identificadores
 desconhecidos e listas vazias geram erro antes de iniciar a rodada.

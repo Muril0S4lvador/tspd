@@ -51,6 +51,7 @@ DEPS := $(OBJS:.o=.d)
 all: $(TARGET)
 
 background: export dir := $(dir)
+background: export seeds := $(seeds)
 background:
 ifeq ($(OS),Windows_NT)
 	@echo "Use make background no Linux, macOS ou WSL." >&2
@@ -64,7 +65,9 @@ else
 	@$(MAKE) all
 	@mkdir -p results
 	@log=$$(mktemp results/segundo-plano.XXXXXX) || exit 1; \
-		nohup "./$(TARGET)" "$$dir" </dev/null >"$$log" 2>&1 & \
+		set -- "./$(TARGET)" "$$dir"; \
+		if [ -n "$$seeds" ]; then set -- "$$@" --seeds "$$seeds"; fi; \
+		nohup "$$@" </dev/null >"$$log" 2>&1 & \
 		printf 'Rodada iniciada em segundo plano (PID %s). Log: %s\n' "$$!" "$$log"
 endif
 
